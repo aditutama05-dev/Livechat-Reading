@@ -1,4 +1,3 @@
-
 name: Build APK
 
 on:
@@ -12,48 +11,51 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
-
-      - name: Build APK with Android Build Tools
+      - name: Organize Files to Android Structure
         run: |
-          mkdir -p bin compiled app/src/main/java/com/example/bacachat app/src/main/res/layout
+          mkdir -p app/src/main/java/com/example/bacachat
+          mkdir -p app/src/main/res/layout
           
-          # Rapikan posisi file jika ada di root
           [ -f MainActivity.java ] && mv MainActivity.java app/src/main/java/com/example/bacachat/
           [ -f activity_main.xml ] && mv activity_main.xml app/src/main/res/layout/
           [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/
           
-          # Compile resource XML
-          $ANDROID_HOME/build-tools/33.0.0/aapt2 compile --dir app/src/main/res -o compiled/
-          $ANDROID_HOME/build-tools/33.0.0/aapt2 link -I $ANDROID_HOME/platforms/android-33/android.jar \
-            --manifest app/src/main/AndroidManifest.xml \
-            -o bin/app-unsigned.apk compiled/*.flat --auto-add-overlay
+          cat << 'EOF' > app/build.gradle
+          plugins {
+              id 'com.android.application'
+          }
 
-          # Compile Java Code
-          find app/src/main/java -name "*.java" > sources.txt
-          javac -d bin -classpath $ANDROID_HOME/platforms/android-33/android.jar @sources.txt
+          android {
+              namespace 'com.example.bacachat'
+              compileSdk 33
 
-          # Add class files to APK
-          cd bin
-          $ANDROID_HOME/build-tools/33.0.0/d8 *.class --output . || true
-          zip -u app-unsigned.apk classes.dex || true
-          
-          # Sign APK
-          keytool -genkeypair -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          $ANDROID_HOME/build-tools/33.0.0/apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out app-debug.apk app-unsigned.apk
+              defaultConfig {
+                  applicationId "com.example.bacachat"
+                  minSdk 21
+                  targetSdk 33
+                  versionCode 1
+                  versionName "1.0"
+              }
+          }
+          EOF
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v3
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build APK with Gradle
+        run: gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: Livechat-Reading-APK
-          path: bin/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           
