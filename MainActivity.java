@@ -1,14 +1,14 @@
 package com.example.bacachat;
 
+import android.app.Activity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
-import androidx.appcompat.app.AppCompatActivity;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
     private EditText etLiveId;
     private Button btnConnect, btnStop;
@@ -19,13 +19,11 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Menghubungkan variabel dengan ID di XML
         etLiveId = findViewById(R.id.et_live_id);
         btnConnect = findViewById(R.id.btn_connect);
         btnStop = findViewById(R.id.btn_stop);
         tvChatLog = findViewById(R.id.tv_chat_log);
 
-        // Fungsi Tombol Mulai Baca
         btnConnect.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -39,7 +37,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Fungsi Tombol Stop
         btnStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
