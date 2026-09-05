@@ -19,12 +19,13 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Build APK without Gradle
         run: |
-          # 1. Siapkan direktori kerja
           mkdir -p bin compiled app/src/main/java/com/example/bacachat app/src/main/res/layout
           
-          # 2. Pindahkan file ke struktur Android jika ada di root
           [ -f MainActivity.java ] && cp MainActivity.java app/src/main/java/com/example/bacachat/ || true
           [ -f activity_main.xml ] && cp activity_main.xml app/src/main/res/layout/ || true
           [ -f AndroidManifest.xml ] && cp AndroidManifest.xml app/src/main/ || true
@@ -32,22 +33,18 @@ jobs:
           SDK_TOOLS="$ANDROID_HOME/build-tools/33.0.0"
           PLATFORM="$ANDROID_HOME/platforms/android-33/android.jar"
 
-          # 3. Compile Resource XML (AAPT2)
           $SDK_TOOLS/aapt2 compile --dir app/src/main/res -o compiled/
           $SDK_TOOLS/aapt2 link -I $PLATFORM \
             --manifest app/src/main/AndroidManifest.xml \
             -o bin/app-unsigned.apk compiled/*.flat --auto-add-overlay
 
-          # 4. Compile Java Code
           find app/src/main/java -name "*.java" > sources.txt
           javac -d bin -classpath $PLATFORM @sources.txt
 
-          # 5. Convert Java Bytes to Android DEX (D8)
           cd bin
           $SDK_TOOLS/d8 *.class --output .
           zip -u app-unsigned.apk classes.dex
           
-          # 6. Sign APK dengan Key Debug
           keytool -genkeypair -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           $SDK_TOOLS/apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out app-debug.apk app-unsigned.apk
 
