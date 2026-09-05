@@ -13,18 +13,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 11
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '11'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.2'
-
-      - name: Setup Project Structure & Assets
+      - name: Setup Project Structure & Build
         run: |
           mkdir -p app/src/main/java/com/example/bacachat
           mkdir -p app/src/main/res/layout
@@ -84,8 +79,10 @@ jobs:
           }
           EOF
 
-      - name: Build Debug APK
-        run: gradle assembleDebug
+      - name: Install Gradle Wrapper & Build APK
+        run: |
+          gradle wrapper --gradle-version 7.5
+          ./gradlew assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
