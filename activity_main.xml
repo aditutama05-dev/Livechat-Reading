@@ -3,36 +3,76 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center">
+    android:padding="16dp"
+    android:background="#121212">
 
+    <!-- Judul / Nama Aplikasi -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Pembaca Live Chat Aksesibilitas"
-        android:textSize="22sp"
+        android:text="Baca Livechat"
+        android:textSize="24sp"
         android:textStyle="bold"
-        android:layout_marginBottom="20dp"/>
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="20dp" />
 
-    <Button
-        android:id="@+id/btnStart"
-        android:layout_width="match_parent"
-        android:layout_height="70dp"
-        android:text="AKTIFKAN TOMBOL MELAYANG"
-        android:textSize="18sp"
-        android:textStyle="bold"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Pengatur Ukuran Tombol:"
-        android:layout_marginTop="30dp"/>
-
-    <SeekBar
-        android:id="@+id/seekBar"
+    <!-- Kolom Input ID / Link Stream -->
+    <EditText
+        android:id="@+id/et_live_id"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:max="200"
-        android:progress="100"/>
+        android:hint="Masukkan URL atau ID Livechat..."
+        android:textColorHint="#888888"
+        android:textColor="#FFFFFF"
+        android:background="#2A2A2A"
+        android:padding="12dp"
+        android:layout_marginBottom="12dp"/>
+
+    <!-- Baris Tombol Aksi -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <!-- Tombol Mulai -->
+        <Button
+            android:id="@+id/btn_connect"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Mulai Baca"
+            android:backgroundTint="#6200EE"
+            android:textColor="#FFFFFF"
+            android:layout_marginEnd="8dp" />
+
+        <!-- Tombol Berhenti -->
+        <Button
+            android:id="@+id/btn_stop"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Stop"
+            android:backgroundTint="#B00020"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+    <!-- Area Tampilan Chat -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#1E1E1E"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/tv_chat_log"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Status: Siap membaca livechat..."
+            android:textColor="#CCCCCC"
+            android:textSize="14sp" />
+    </ScrollView>
 
 </LinearLayout>
+            
