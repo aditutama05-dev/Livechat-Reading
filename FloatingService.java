@@ -1,90 +1,151 @@
 name: Build APK
 
 on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
+            cat << 'EOF' >package com.example.bacachat;
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+import android.app.Service;
+import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.PixelFormat;
+import android.os.Build;
+import android.os.IBinder;
+import android.view.Gravity;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.Toast;
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+public class FloatingService extends Service {
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+    private WindowManager windowManager;
+    private View overlayBox;
+    private LinearLayout controlLayout;
+    private boolean isLocked = false;
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.2'
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
 
-      - name: Setup Project Structure
-        run: |
-          mkdir -p app/src/main/java/com/example/bacachat
-          mkdir -p app/src/main/res/layout
-          mkdir -p app/src/main/res/mipmap-hdpi
+    @Override
+    public void onCreate() {
+        super.onCreate();
 
-          [ -f MainActivity.java ] && mv MainActivity.java app/src/main/java/com/example/bacachat/ || true
-          [ -f FloatingService.java ] && mv FloatingService.java app/src/main/java/com/example/bacachat/ || true
-          [ -f activity_main.xml ] && mv activity_main.xml app/src/main/res/layout/ || true
-          [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/ || true
+        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
 
-          cat << 'EOF' > settings.gradle
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.name = "Livechat-Reading"
-          include ':app'
-          EOF
+        int layoutType;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            layoutType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+        } else {
+            layoutType = WindowManager.LayoutParams.TYPE_PHONE;
+        }
 
-          cat << 'EOF' > build.gradle
-          plugins {
-              id 'com.android.application' version '8.1.1' apply false
-          }
-          EOF
+        // 1. KOTAK HIJAU TRANSPARAN
+        overlayBox = new View(this);
+        overlayBox.setBackgroundColor(Color.parseColor("#3300FF00"));
 
-          cat << 'EOF' > app/build.gradle
-          plugins {
-              id 'com.android.application'
-          }
+        final WindowManager.LayoutParams boxParams = new WindowManager.LayoutParams(
+                600, 400,
+                layoutType,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+        );
+        boxParams.gravity = Gravity.CENTER;
 
-          android {
-              namespace 'com.example.bacachat'
-              compileSdk 33
+        // 2. PANEL TOMBOL KONTROL
+        controlLayout = new LinearLayout(this);
+        controlLayout.setOrientation(LinearLayout.HORIZONTAL);
+        controlLayout.setBackgroundColor(Color.parseColor("#CC000000"));
 
-              defaultConfig {
-                  applicationId "com.example.bacachat"
-                  minSdk 21
-                  targetSdk 33
-                  versionCode 1
-                  versionName "1.0"
-              }
-          }
-          EOF
+        final Button btnLock = new Button(this);
+        btnLock.setText("🔓 Buka");
 
-      - name: Build Debug APK
-        run: gradle assembleDebug
+        final Button btnClose = new Button(this);
+        btnClose.setText("❌ Tutup");
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Livechat-Reading-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
-    
+        controlLayout.addView(btnLock);
+        controlLayout.addView(btnClose);
+
+        final WindowManager.LayoutParams controlParams = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                layoutType,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+        );
+        controlParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        controlParams.y = 100;
+
+        try {
+            windowManager.addView(overlayBox, boxParams);
+            windowManager.addView(controlLayout, controlParams);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // FITUR GESER KOTAK
+        overlayBox.setOnTouchListener(new View.OnTouchListener() {
+            private int initialX, initialY;
+            private float initialTouchX, initialTouchY;
+
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (isLocked) return false;
+
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        initialX = boxParams.x;
+                        initialY = boxParams.y;
+                        initialTouchX = event.getRawX();
+                        initialTouchY = event.getRawY();
+                        return true;
+
+                    case MotionEvent.ACTION_MOVE:
+                        boxParams.x = initialX + (int) (event.getRawX() - initialTouchX);
+                        boxParams.y = initialY + (int) (event.getRawY() - initialTouchY);
+                        try {
+                            windowManager.updateViewLayout(overlayBox, boxParams);
+                        } catch (Exception ignored) {}
+                        return true;
+                }
+                return false;
+            }
+        });
+
+        // FITUR TOMBOL KUNCI
+        btnLock.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                isLocked = !isLocked;
+                if (isLocked) {
+                    btnLock.setText("🔒 Terkunci");
+                    overlayBox.setBackgroundColor(Color.parseColor("#1100FF00"));
+                    Toast.makeText(FloatingService.this, "Kotak Dikunci", Toast.LENGTH_SHORT).show();
+                } else {
+                    btnLock.setText("🔓 Buka");
+                    overlayBox.setBackgroundColor(Color.parseColor("#3300FF00"));
+                    Toast.makeText(FloatingService.this, "Kotak Bisa Digeser", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        // FITUR TOMBOL TUTUP
+        btnClose.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                stopSelf();
+            }
+        });
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        try {
+            if (overlayBox != null) windowManager.removeView(overlayBox);
+            if (controlLayout != null) windowManager.removeView(controlLayout);
+        } catch (Exception ignored) {}
+    }
+                                                                   }
