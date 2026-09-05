@@ -19,7 +19,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Project Structure & Build
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2'
+
+      - name: Setup Project Structure & Assets
         run: |
           mkdir -p app/src/main/java/com/example/bacachat
           mkdir -p app/src/main/res/layout
@@ -41,48 +46,51 @@ jobs:
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
 
           cat << 'EOF' > settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
           rootProject.name = "Livechat-Reading"
           include ':app'
           EOF
 
           cat << 'EOF' > build.gradle
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:7.4.2'
-              }
-          }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
+          plugins {
+              id 'com.android.application' version '8.1.1' apply false
           }
           EOF
 
           cat << 'EOF' > app/build.gradle
-          apply plugin: 'com.android.application'
+          plugins {
+              id 'com.android.application'
+          }
 
           android {
-              compileSdkVersion 33
+              namespace 'com.example.bacachat'
+              compileSdk 33
 
               defaultConfig {
                   applicationId "com.example.bacachat"
-                  minSdkVersion 21
-                  targetSdkVersion 33
+                  minSdk 21
+                  targetSdk 33
                   versionCode 1
                   versionName "1.0"
               }
           }
           EOF
 
-      - name: Install Gradle Wrapper & Build APK
-        run: |
-          gradle wrapper --gradle-version 7.5
-          ./gradlew assembleDebug
+      - name: Build Debug APK
+        run: gradle assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
