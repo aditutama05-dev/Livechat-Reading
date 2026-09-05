@@ -28,8 +28,10 @@ jobs:
         run: |
           mkdir -p app/src/main/java/com/example/bacachat
           mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/mipmap-hdpi
 
           [ -f MainActivity.java ] && mv MainActivity.java app/src/main/java/com/example/bacachat/ || true
+          [ -f FloatingService.java ] && mv FloatingService.java app/src/main/java/com/example/bacachat/ || true
           [ -f activity_main.xml ] && mv activity_main.xml app/src/main/res/layout/ || true
           [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/ || true
 
