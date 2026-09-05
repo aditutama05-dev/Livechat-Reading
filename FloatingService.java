@@ -18,6 +18,7 @@ public class FloatingService extends Service {
 
     private WindowManager windowManager;
     private View overlayBox;
+    private LinearLayout controlLayout;
     private boolean isLocked = false;
 
     @Override
@@ -38,20 +39,20 @@ public class FloatingService extends Service {
             layoutType = WindowManager.LayoutParams.TYPE_PHONE;
         }
 
-        // 1. MEMBUAT KOTAK HIJAU TRANSPARAN
+        // 1. KOTAK HIJAU TRANSPARAN
         overlayBox = new View(this);
-        overlayBox.setBackgroundColor(Color.parseColor("#3300FF00")); // Hijau Transparan
+        overlayBox.setBackgroundColor(Color.parseColor("#3300FF00"));
 
         final WindowManager.LayoutParams boxParams = new WindowManager.LayoutParams(
-                600, 400, // Ukuran awal kotak
+                600, 400,
                 layoutType,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
         );
         boxParams.gravity = Gravity.CENTER;
 
-        // 2. MEMBUAT PANEL TOMBOL KONTROL (Kunci & Tutup)
-        LinearLayout controlLayout = new LinearLayout(this);
+        // 2. PANEL TOMBOL KONTROL
+        controlLayout = new LinearLayout(this);
         controlLayout.setOrientation(LinearLayout.HORIZONTAL);
         controlLayout.setBackgroundColor(Color.parseColor("#CC000000"));
 
@@ -74,17 +75,21 @@ public class FloatingService extends Service {
         controlParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
         controlParams.y = 100;
 
-        windowManager.addView(overlayBox, boxParams);
-        windowManager.addView(controlLayout, controlParams);
+        try {
+            windowManager.addView(overlayBox, boxParams);
+            windowManager.addView(controlLayout, controlParams);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
-        // Fitur Geser Kotak Hijau
+        // FITUR GESER KOTAK
         overlayBox.setOnTouchListener(new View.OnTouchListener() {
             private int initialX, initialY;
             private float initialTouchX, initialTouchY;
 
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                if (isLocked) return false; // Jika dikunci, tidak bisa digeser
+                if (isLocked) return false;
 
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
@@ -97,31 +102,33 @@ public class FloatingService extends Service {
                     case MotionEvent.ACTION_MOVE:
                         boxParams.x = initialX + (int) (event.getRawX() - initialTouchX);
                         boxParams.y = initialY + (int) (event.getRawY() - initialTouchY);
-                        windowManager.updateViewLayout(overlayBox, boxParams);
+                        try {
+                            windowManager.updateViewLayout(overlayBox, boxParams);
+                        } catch (Exception ignored) {}
                         return true;
                 }
                 return false;
             }
         });
 
-        // Fitur Tombol Kunci / Buka
+        // FITUR TOMBOL KUNCI
         btnLock.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 isLocked = !isLocked;
                 if (isLocked) {
                     btnLock.setText("🔒 Terkunci");
-                    overlayBox.setBackgroundColor(Color.parseColor("#1100FF00")); // Lebih transparan saat dikunci
-                    Toast.makeText(FloatingService.this, "Posisi Kotak Dikunci", Toast.LENGTH_SHORT).show();
+                    overlayBox.setBackgroundColor(Color.parseColor("#1100FF00"));
+                    Toast.makeText(FloatingService.this, "Kotak Dikunci", Toast.LENGTH_SHORT).show();
                 } else {
                     btnLock.setText("🔓 Buka");
                     overlayBox.setBackgroundColor(Color.parseColor("#3300FF00"));
-                    Toast.makeText(FloatingService.this, "Posisi Kotak Bisa Digeser", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(FloatingService.this, "Kotak Bisa Digeser", Toast.LENGTH_SHORT).show();
                 }
             }
         });
 
-        // Fitur Tombol Tutup
+        // FITUR TOMBOL TUTUP
         btnClose.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -133,7 +140,9 @@ public class FloatingService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        if (overlayBox != null) windowManager.removeView(overlayBox);
+        try {
+            if (overlayBox != null) windowManager.removeView(overlayBox);
+            if (controlLayout != null) windowManager.removeView(controlLayout);
+        } catch (Exception ignored) {}
     }
-  }
-              
+}
