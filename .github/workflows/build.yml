@@ -26,7 +26,6 @@ jobs:
 
       - name: Setup Project Structure & Assets
         run: |
-          # 1. Buat struktur folder
           mkdir -p app/src/main/java/com/example/bacachat
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/mipmap-hdpi
@@ -35,40 +34,22 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xxhdpi
           mkdir -p app/src/main/res/mipmap-xxxhdpi
 
-          # 2. Pindahkan file
           [ -f MainActivity.java ] && mv MainActivity.java app/src/main/java/com/example/bacachat/ || true
           [ -f FloatingService.java ] && mv FloatingService.java app/src/main/java/com/example/bacachat/ || true
           [ -f activity_main.xml ] && mv activity_main.xml app/src/main/res/layout/ || true
           [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/ || true
 
-          # 3. Buat ikon dummy
           printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x00\x00\x02\x00\x01H\xaf\xa4q\x00\x00\x00\x00IEND\aeB`\x82' > app/src/main/res/mipmap-hdpi/ic_launcher.png
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-mdpi/ic_launcher.png
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xhdpi/ic_launcher.png
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
 
-          # 4. Buat settings.gradle
           cat << 'EOF' > settings.gradle
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
           rootProject.name = "Livechat-Reading"
           include ':app'
           EOF
 
-          # 5. Buat build.gradle (Root)
           cat << 'EOF' > build.gradle
           buildscript {
               repositories {
@@ -87,7 +68,6 @@ jobs:
           }
           EOF
 
-          # 6. Buat app/build.gradle
           cat << 'EOF' > app/build.gradle
           apply plugin: 'com.android.application'
 
