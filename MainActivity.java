@@ -1,48 +1,55 @@
 package com.example.bacachat;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
-import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
-    private EditText etLiveId;
-    private Button btnConnect, btnStop;
-    private TextView tvChatLog;
+    private static final int OVERLAY_PERMISSION_REQ_CODE = 1234;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        etLiveId = findViewById(R.id.et_live_id);
-        btnConnect = findViewById(R.id.btn_connect);
-        btnStop = findViewById(R.id.btn_stop);
-        tvChatLog = findViewById(R.id.tv_chat_log);
-
-        btnConnect.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String inputId = etLiveId.getText().toString().trim();
-                if (inputId.isEmpty()) {
-                    Toast.makeText(MainActivity.this, "Masukkan ID/Link terlebih dahulu!", Toast.LENGTH_SHORT).show();
-                } else {
-                    tvChatLog.setText("Menghubungkan ke " + inputId + "...\nChat akan tampil di sini.");
-                    Toast.makeText(MainActivity.this, "Menghubungkan...", Toast.LENGTH_SHORT).show();
+        Button btnStart = findViewById(R.id.btn_connect);
+        if (btnStart != null) {
+            btnStart.setText("AKTIFKAN TOMBOL MELAYANG");
+            btnStart.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    checkOverlayPermission();
                 }
-            }
-        });
-
-        btnStop.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                tvChatLog.setText("Status: Pembacaan chat dihentikan.");
-                Toast.makeText(MainActivity.this, "Dihentikan", Toast.LENGTH_SHORT).show();
-            }
-        });
+            });
+        }
     }
-}
+
+    private void checkOverlayPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!Settings.canDrawOverlays(this)) {
+                Toast.makeText(this, "Izinkan aplikasi tampil di atas aplikasi lain", Toast.LENGTH_LONG).show();
+                Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + getPackageName()));
+                startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE);
+            } else {
+                startFloatingService();
+            }
+        } else {
+            startFloatingService();
+        }
+    }
+
+    private void startFloatingService() {
+        startService(new Intent(this, FloatingService.class));
+        Toast.makeText(this, "Widget Melayang Aktif!", Toast.LENGTH_SHORT).show();
+        finish(); // Otomatis menutup aplikasi utama saat melayang aktif
+    }
+                    }
+            
