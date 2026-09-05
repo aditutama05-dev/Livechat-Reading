@@ -19,18 +19,40 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Organize Files and Generate Gradle Wrapper
+      - name: Setup Project Structure
         run: |
-          # Buat struktur direktori Android standar
           mkdir -p app/src/main/java/com/example/bacachat
           mkdir -p app/src/main/res/layout
-          
-          # Pindahkan file dari root ke folder yang sesuai
+
           [ -f MainActivity.java ] && mv MainActivity.java app/src/main/java/com/example/bacachat/ || true
           [ -f activity_main.xml ] && mv activity_main.xml app/src/main/res/layout/ || true
           [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/ || true
 
-          # Buat file app/build.gradle
+          # Otomatis buat settings.gradle bersih
+          cat << 'EOF' > settings.gradle
+          include ':app'
+          EOF
+
+          # Otomatis buat build.gradle bersih
+          cat << 'EOF' > build.gradle
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.1.1'
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          EOF
+
+          # Otomatis buat app/build.gradle
           cat << 'EOF' > app/build.gradle
           plugins {
               id 'com.android.application'
@@ -50,7 +72,6 @@ jobs:
           }
           EOF
 
-          # Install Gradle wrapper untuk eksekusi build
           gradle wrapper
 
       - name: Build Debug APK
