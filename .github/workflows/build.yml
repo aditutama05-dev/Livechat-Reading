@@ -19,38 +19,46 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Build APK without Gradle
+      - name: Organize Files and Generate Gradle Wrapper
         run: |
-          mkdir -p bin compiled app/src/main/java/com/example/bacachat app/src/main/res/layout
+          # Buat struktur direktori Android standar
+          mkdir -p app/src/main/java/com/example/bacachat
+          mkdir -p app/src/main/res/layout
           
-          [ -f MainActivity.java ] && cp MainActivity.java app/src/main/java/com/example/bacachat/ || true
-          [ -f activity_main.xml ] && cp activity_main.xml app/src/main/res/layout/ || true
-          [ -f AndroidManifest.xml ] && cp AndroidManifest.xml app/src/main/ || true
-          
-          SDK_TOOLS="$ANDROID_HOME/build-tools/33.0.0"
-          PLATFORM="$ANDROID_HOME/platforms/android-33/android.jar"
+          # Pindahkan file dari root ke folder yang sesuai
+          [ -f MainActivity.java ] && mv MainActivity.java app/src/main/java/com/example/bacachat/ || true
+          [ -f activity_main.xml ] && mv activity_main.xml app/src/main/res/layout/ || true
+          [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/ || true
 
-          $SDK_TOOLS/aapt2 compile --dir app/src/main/res -o compiled/
-          $SDK_TOOLS/aapt2 link -I $PLATFORM \
-            --manifest app/src/main/AndroidManifest.xml \
-            -o bin/app-unsigned.apk compiled/*.flat --auto-add-overlay
+          # Buat file app/build.gradle
+          cat << 'EOF' > app/build.gradle
+          plugins {
+              id 'com.android.application'
+          }
 
-          find app/src/main/java -name "*.java" > sources.txt
-          javac -d bin -classpath $PLATFORM @sources.txt
+          android {
+              namespace 'com.example.bacachat'
+              compileSdk 33
 
-          cd bin
-          $SDK_TOOLS/d8 *.class --output .
-          zip -u app-unsigned.apk classes.dex
-          
-          keytool -genkeypair -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          $SDK_TOOLS/apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out app-debug.apk app-unsigned.apk
+              defaultConfig {
+                  applicationId "com.example.bacachat"
+                  minSdk 21
+                  targetSdk 33
+                  versionCode 1
+                  versionName "1.0"
+              }
+          }
+          EOF
 
-      - name: Upload APK
+          # Install Gradle wrapper untuk eksekusi build
+          gradle wrapper
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Livechat-Reading-APK
-          path: bin/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           
