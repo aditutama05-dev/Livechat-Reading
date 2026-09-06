@@ -19,7 +19,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Project Structure and Generate Code
+      - name: Setup Project Structure and Files
         run: |
           mkdir -p app/src/main/java/com/example/bacachat
           mkdir -p app/src/main/res/layout
@@ -30,7 +30,7 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xxhdpi
           mkdir -p app/src/main/res/mipmap-xxxhdpi
 
-          # UI Drawables
+          # Background Drawables
           cat << 'EOF' > app/src/main/res/drawable/bg_card.xml
           <shape xmlns:android="http://schemas.android.com/apk/res/android">
               <solid android:color="#1E1E2C"/>
@@ -226,7 +226,7 @@ jobs:
           import android.os.IBinder;
           import android.speech.tts.TextToSpeech;
           import android.view.Gravity;
-          import android.view.MotionEvent;
+          android.view.MotionEvent;
           import android.view.View;
           import android.view.WindowManager;
           import android.widget.Button;
@@ -468,4 +468,4 @@ jobs:
                   android:allowBackup="true"
                   android:icon="@mipmap/ic_launcher"
                   android:label="Baca Livechat"
-        
+               
