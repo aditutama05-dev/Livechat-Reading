@@ -19,7 +19,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Project Structure and Build
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2'
+
+      - name: Generate Project Files & Build APK
         run: |
           mkdir -p app/src/main/java/com/example/bacachat
           mkdir -p app/src/main/res/layout
@@ -30,7 +35,7 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xxhdpi
           mkdir -p app/src/main/res/mipmap-xxxhdpi
 
-          # 1. UI Drawables
+          # UI Drawables
           cat << 'EOF' > app/src/main/res/drawable/bg_card.xml
           <shape xmlns:android="http://schemas.android.com/apk/res/android">
               <solid android:color="#1E1E2C"/>
@@ -56,7 +61,7 @@ jobs:
           </shape>
           EOF
 
-          # 2. Activity Layout
+          # Activity Layout
           cat << 'EOF' > app/src/main/res/layout/activity_main.xml
           <?xml version="1.0" encoding="utf-8"?>
           <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
@@ -214,7 +219,7 @@ jobs:
           </ScrollView>
           EOF
 
-          # 3. FloatingService.java
+          # FloatingService.java
           cat << 'EOF' > app/src/main/java/com/example/bacachat/FloatingService.java
           package com.example.bacachat;
 
@@ -398,7 +403,7 @@ jobs:
           }
           EOF
 
-          # 4. MainActivity.java
+          # MainActivity.java
           cat << 'EOF' > app/src/main/java/com/example/bacachat/MainActivity.java
           package com.example.bacachat;
 
@@ -412,7 +417,7 @@ jobs:
           import android.widget.RadioButton;
           import android.widget.Switch;
           import android.widget.Toast;
-          import androidx.appcompat.app.AppCompatActivity;
+           grandAppAppCompatActivity import androidx.appcompat.app.AppCompatActivity;
 
           public class MainActivity extends AppCompatActivity {
 
@@ -456,7 +461,7 @@ jobs:
           }
           EOF
 
-          # 5. AndroidManifest.xml
+          # AndroidManifest.xml
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -465,7 +470,4 @@ jobs:
               <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
 
               <application
-                  android:allowBackup="true"
-                  android:icon="@mipmap/ic_launcher"
-                  android:label="Baca Livechat"
- 
+               
