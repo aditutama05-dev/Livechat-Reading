@@ -19,10 +19,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Setup Redesigned App Structure
+      - name: Setup Project Files
         run: |
           mkdir -p app/src/main/java/com/example/bacachat
           mkdir -p app/src/main/res/layout
@@ -59,7 +56,7 @@ jobs:
           </shape>
           EOF
 
-          # Layout Utama
+          # Activity Layout
           cat << 'EOF' > app/src/main/res/layout/activity_main.xml
           <?xml version="1.0" encoding="utf-8"?>
           <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
@@ -217,7 +214,7 @@ jobs:
           </ScrollView>
           EOF
 
-          # Service File
+          # FloatingService.java
           cat << 'EOF' > app/src/main/java/com/example/bacachat/FloatingService.java
           package com.example.bacachat;
 
@@ -401,7 +398,7 @@ jobs:
           }
           EOF
 
-          # Activity File
+          # MainActivity.java
           cat << 'EOF' > app/src/main/java/com/example/bacachat/MainActivity.java
           package com.example.bacachat;
 
@@ -459,7 +456,7 @@ jobs:
           }
           EOF
 
-          # Manifest
+          # AndroidManifest.xml
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -470,4 +467,5 @@ jobs:
               <application
                   android:allowBackup="true"
                   android:icon="@mipmap/ic_launcher"
-            
+                  android:label="Baca Livechat"
+                  andr
