@@ -19,7 +19,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Project Structure and Files
+      - name: Setup Project Structure and Build
         run: |
           mkdir -p app/src/main/java/com/example/bacachat
           mkdir -p app/src/main/res/layout
@@ -30,7 +30,7 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xxhdpi
           mkdir -p app/src/main/res/mipmap-xxxhdpi
 
-          # UI Drawables
+          # 1. UI Drawables
           cat << 'EOF' > app/src/main/res/drawable/bg_card.xml
           <shape xmlns:android="http://schemas.android.com/apk/res/android">
               <solid android:color="#1E1E2C"/>
@@ -56,7 +56,7 @@ jobs:
           </shape>
           EOF
 
-          # Activity Layout
+          # 2. Activity Layout
           cat << 'EOF' > app/src/main/res/layout/activity_main.xml
           <?xml version="1.0" encoding="utf-8"?>
           <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
@@ -214,7 +214,7 @@ jobs:
           </ScrollView>
           EOF
 
-          # FloatingService.java
+          # 3. FloatingService.java
           cat << 'EOF' > app/src/main/java/com/example/bacachat/FloatingService.java
           package com.example.bacachat;
 
@@ -398,7 +398,7 @@ jobs:
           }
           EOF
 
-          # MainActivity.java
+          # 4. MainActivity.java
           cat << 'EOF' > app/src/main/java/com/example/bacachat/MainActivity.java
           package com.example.bacachat;
 
@@ -456,7 +456,7 @@ jobs:
           }
           EOF
 
-          # AndroidManifest.xml
+          # 5. AndroidManifest.xml
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -468,4 +468,4 @@ jobs:
                   android:allowBackup="true"
                   android:icon="@mipmap/ic_launcher"
                   android:label="Baca Livechat"
-                
+ 
