@@ -19,7 +19,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Project Structure and Files
+      - name: Setup Project and Execute Build
         run: |
           mkdir -p app/src/main/java/com/example/bacachat
           mkdir -p app/src/main/res/layout
@@ -30,7 +30,7 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xxhdpi
           mkdir -p app/src/main/res/mipmap-xxxhdpi
 
-          # Background Drawables
+          # UI Drawables
           cat << 'EOF' > app/src/main/res/drawable/bg_card.xml
           <shape xmlns:android="http://schemas.android.com/apk/res/android">
               <solid android:color="#1E1E2C"/>
@@ -56,7 +56,7 @@ jobs:
           </shape>
           EOF
 
-          # Activity Layout
+          # Layout Utama
           cat << 'EOF' > app/src/main/res/layout/activity_main.xml
           <?xml version="1.0" encoding="utf-8"?>
           <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
@@ -214,7 +214,7 @@ jobs:
           </ScrollView>
           EOF
 
-          # FloatingService.java
+          # Service File
           cat << 'EOF' > app/src/main/java/com/example/bacachat/FloatingService.java
           package com.example.bacachat;
 
@@ -226,7 +226,7 @@ jobs:
           import android.os.IBinder;
           import android.speech.tts.TextToSpeech;
           import android.view.Gravity;
-          android.view.MotionEvent;
+          import android.view.MotionEvent;
           import android.view.View;
           import android.view.WindowManager;
           import android.widget.Button;
@@ -398,7 +398,7 @@ jobs:
           }
           EOF
 
-          # MainActivity.java
+          # Activity File
           cat << 'EOF' > app/src/main/java/com/example/bacachat/MainActivity.java
           package com.example.bacachat;
 
@@ -456,7 +456,7 @@ jobs:
           }
           EOF
 
-          # AndroidManifest.xml
+          # Manifest
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -468,4 +468,4 @@ jobs:
                   android:allowBackup="true"
                   android:icon="@mipmap/ic_launcher"
                   android:label="Baca Livechat"
-               
+                  android:theme="@style/Them
