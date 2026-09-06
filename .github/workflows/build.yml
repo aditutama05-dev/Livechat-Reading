@@ -24,7 +24,7 @@ jobs:
         with:
           gradle-version: '8.0'
 
-      - name: Configure Repositories & Build
+      - name: Configure All Files & Build
         run: |
           cat << 'EOF' > settings.gradle
           pluginManagement {
@@ -51,7 +51,37 @@ jobs:
           }
           EOF
 
-          gradle assembleDebug --stacktrace
+          mkdir -p app
+          cat << 'EOF' > app/build.gradle
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'com.example.bacachat'
+              compileSdk 33
+
+              defaultConfig {
+                  applicationId "com.example.bacachat"
+                  minSdk 21
+                  targetSdk 33
+                  versionCode 1
+                  versionName "1.0"
+              }
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.9.0'
+          }
+          EOF
+
+          gradle assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
