@@ -8,14 +8,14 @@ import android.provider.Settings;
 import android.view.View;
 import android.widget.Button;
 import android.widget.RadioButton;
-import android.widget.Switch;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SwitchCompat;
 
 public class MainActivity extends AppCompatActivity {
 
     private RadioButton rbLiveStream;
-    private Switch swAutoRead;
+    private SwitchCompat swAutoRead;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,5 +51,4 @@ public class MainActivity extends AppCompatActivity {
 
         Toast.makeText(this, "Ikon Melayang Aktif!", Toast.LENGTH_SHORT).show();
     }
-                                    }
-      
+}
