@@ -14,12 +14,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Project Structure & Code
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Setup Redesigned App Structure
         run: |
           mkdir -p app/src/main/java/com/example/bacachat
           mkdir -p app/src/main/res/layout
@@ -30,7 +33,7 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xxhdpi
           mkdir -p app/src/main/res/mipmap-xxxhdpi
 
-          # 1. Background Drawables
+          # Background Drawables
           cat << 'EOF' > app/src/main/res/drawable/bg_card.xml
           <shape xmlns:android="http://schemas.android.com/apk/res/android">
               <solid android:color="#1E1E2C"/>
@@ -56,7 +59,7 @@ jobs:
           </shape>
           EOF
 
-          # 2. Activity Layout
+          # Layout Utama
           cat << 'EOF' > app/src/main/res/layout/activity_main.xml
           <?xml version="1.0" encoding="utf-8"?>
           <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
@@ -214,7 +217,7 @@ jobs:
           </ScrollView>
           EOF
 
-          # 3. FloatingService.java
+          # Service File
           cat << 'EOF' > app/src/main/java/com/example/bacachat/FloatingService.java
           package com.example.bacachat;
 
@@ -398,7 +401,7 @@ jobs:
           }
           EOF
 
-          # 4. MainActivity.java
+          # Activity File
           cat << 'EOF' > app/src/main/java/com/example/bacachat/MainActivity.java
           package com.example.bacachat;
 
@@ -456,7 +459,7 @@ jobs:
           }
           EOF
 
-          # 5. AndroidManifest.xml
+          # Manifest
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -467,4 +470,4 @@ jobs:
               <application
                   android:allowBackup="true"
                   android:icon="@mipmap/ic_launcher"
-                  android:label="Baca Livech
+            
