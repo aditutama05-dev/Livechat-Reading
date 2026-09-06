@@ -19,12 +19,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.2'
-
-      - name: Organize Files & Generate Configs
+      - name: Organize Project Files
         run: |
           mkdir -p app/src/main/java/com/example/bacachat
           mkdir -p app/src/main/res/layout
@@ -35,16 +30,13 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xxhdpi
           mkdir -p app/src/main/res/mipmap-xxxhdpi
 
-          # Amankan proses pemindahan file jika ada dari root
+          # Pindahkan kode sumber jika berada di luar
           [ -f MainActivity.java ] && cp MainActivity.java app/src/main/java/com/example/bacachat/ || true
           [ -f FloatingService.java ] && cp FloatingService.java app/src/main/java/com/example/bacachat/ || true
           [ -f activity_main.xml ] && cp activity_main.xml app/src/main/res/layout/ || true
           [ -f AndroidManifest.xml ] && cp AndroidManifest.xml app/src/main/ || true
 
-          # Hapus file mentah di root agar tidak duplikat
-          rm -f MainActivity.java FloatingService.java activity_main.xml AndroidManifest.xml || true
-
-          # Background Drawables
+          # Latar Belakang Tampilan
           cat << 'EOF' > app/src/main/res/drawable/bg_card.xml
           <shape xmlns:android="http://schemas.android.com/apk/res/android">
               <solid android:color="#1E1E2C"/>
@@ -70,52 +62,47 @@ jobs:
           </shape>
           EOF
 
-          # Icons Dummy
+          # Gambar Ikon
           printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x00\x00\x02\x00\x01H\xaf\xa4q\x00\x00\x00\x00IEND\aeB`\x82' > app/src/main/res/mipmap-hdpi/ic_launcher.png
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-mdpi/ic_launcher.png
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xhdpi/ic_launcher.png
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
 
-          # Configuration Files
+          # Konfigurasi Gradle Sederhana
           cat << 'EOF' > settings.gradle
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
           rootProject.name = "Livechat-Reading"
           include ':app'
           EOF
 
           cat << 'EOF' > build.gradle
-          plugins {
-              id 'com.android.application' version '8.1.1' apply false
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:7.4.2'
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
           }
           EOF
 
           cat << 'EOF' > app/build.gradle
-          plugins {
-              id 'com.android.application'
-          }
+          apply plugin: 'com.android.application'
 
           android {
-              namespace 'com.example.bacachat'
-              compileSdk 33
+              compileSdkVersion 33
 
               defaultConfig {
                   applicationId "com.example.bacachat"
-                  minSdk 21
-                  targetSdk 33
+                  minSdkVersion 21
+                  targetSdkVersion 33
                   versionCode 1
                   versionName "1.0"
               }
@@ -127,11 +114,10 @@ jobs:
           }
           EOF
 
-      - name: Final Build Check
-        run: ls -R
-
       - name: Build Debug APK
-        run: gradle assembleDebug
+        run: |
+          gradle wrapper --gradle-version 7.5
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
