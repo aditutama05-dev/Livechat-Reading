@@ -13,46 +13,56 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '11'
+          java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 7.5
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '7.5'
-
-      - name: Prepare Project Configuration & Resources
+      - name: Setup Gradle Wrapper & Project Files
         run: |
-          # 1. Konfigurasi Gradle
+          # 1. Buat Wrapper Properties
+          mkdir -p gradle/wrapper
+          cat << 'EOF' > gradle/wrapper/gradle-wrapper.properties
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+
+          # 2. settings.gradle
           cat << 'EOF' > settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
           rootProject.name = "Livechat-Reading"
           include ':app'
           EOF
 
+          # 3. Root build.gradle
           cat << 'EOF' > build.gradle
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:7.4.2'
-              }
-          }
-
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
+          plugins {
+              id 'com.android.application' version '8.1.1' apply false
           }
           EOF
 
+          # 4. App build.gradle
           cat << 'EOF' > app/build.gradle
-          apply plugin: 'com.android.application'
+          plugins {
+              id 'com.android.application'
+          }
 
           android {
               namespace 'com.example.bacachat'
@@ -65,6 +75,11 @@ jobs:
                   versionCode 1
                   versionName "1.0"
               }
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
           }
 
           dependencies {
@@ -73,7 +88,7 @@ jobs:
           }
           EOF
 
-          # 2. Perbaiki MainActivity.java
+          # 5. MainActivity.java
           mkdir -p app/src/main/java/com/example/bacachat
           cat << 'EOF' > app/src/main/java/com/example/bacachat/MainActivity.java
           package com.example.bacachat;
@@ -132,7 +147,7 @@ jobs:
           }
           EOF
 
-          # 3. Perbaiki activity_main.xml
+          # 6. activity_main.xml
           mkdir -p app/src/main/res/layout
           cat << 'EOF' > app/src/main/res/layout/activity_main.xml
           <?xml version="1.0" encoding="utf-8"?>
@@ -291,7 +306,7 @@ jobs:
           </ScrollView>
           EOF
 
-          # 4. Resource Drawables & Icons
+          # 7. Resources & Drawables
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/res/mipmap-hdpi
           mkdir -p app/src/main/res/mipmap-mdpi
@@ -333,8 +348,11 @@ jobs:
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
 
-      - name: Build Debug APK
-        run: gradle assembleDebug --stacktrace
+      - name: Generate Executable Wrapper
+        run: gradle wrapper --gradle-version 8.0
+
+      - name: Build Debug APK via Wrapper
+        run: ./gradlew assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
