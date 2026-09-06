@@ -19,11 +19,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Install System Dependencies & Setup
+      - name: Setup Gradle Environment
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Setup Project Files
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gradle
-          
           mkdir -p app/src/main/java/com/example/bacachat
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/drawable
@@ -229,7 +229,7 @@ jobs:
           import android.os.IBinder;
           import android.speech.tts.TextToSpeech;
           import android.view.Gravity;
-          android.view.MotionEvent;
+          import android.view.MotionEvent;
           import android.view.View;
           import android.view.WindowManager;
           import android.widget.Button;
@@ -469,4 +469,4 @@ jobs:
 
               <application
                   android:allowBackup="true"
-                  android:icon="@mipmap/
+                  android:icon="@mipmap/ic_lau
