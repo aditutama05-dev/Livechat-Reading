@@ -24,7 +24,7 @@ jobs:
         with:
           gradle-version: '8.2'
 
-      - name: Setup Project Structure & Move Files
+      - name: Organize Files & Generate Configs
         run: |
           mkdir -p app/src/main/java/com/example/bacachat
           mkdir -p app/src/main/res/layout
@@ -35,11 +35,14 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xxhdpi
           mkdir -p app/src/main/res/mipmap-xxxhdpi
 
-          # Pindahkan file dari root ke struktur folder app jika ada
-          [ -f MainActivity.java ] && mv MainActivity.java app/src/main/java/com/example/bacachat/ || true
-          [ -f FloatingService.java ] && mv FloatingService.java app/src/main/java/com/example/bacachat/ || true
-          [ -f activity_main.xml ] && mv activity_main.xml app/src/main/res/layout/ || true
-          [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/ || true
+          # Amankan proses pemindahan file jika ada dari root
+          [ -f MainActivity.java ] && cp MainActivity.java app/src/main/java/com/example/bacachat/ || true
+          [ -f FloatingService.java ] && cp FloatingService.java app/src/main/java/com/example/bacachat/ || true
+          [ -f activity_main.xml ] && cp activity_main.xml app/src/main/res/layout/ || true
+          [ -f AndroidManifest.xml ] && cp AndroidManifest.xml app/src/main/ || true
+
+          # Hapus file mentah di root agar tidak duplikat
+          rm -f MainActivity.java FloatingService.java activity_main.xml AndroidManifest.xml || true
 
           # Background Drawables
           cat << 'EOF' > app/src/main/res/drawable/bg_card.xml
@@ -123,6 +126,9 @@ jobs:
               implementation 'com.google.android.material:material:1.9.0'
           }
           EOF
+
+      - name: Final Build Check
+        run: ls -R
 
       - name: Build Debug APK
         run: gradle assembleDebug
