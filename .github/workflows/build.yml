@@ -22,6 +22,50 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Generate Drawables & Assets
+        run: |
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/mipmap-hdpi
+          mkdir -p app/src/main/res/mipmap-mdpi
+          mkdir -p app/src/main/res/mipmap-xhdpi
+          mkdir -p app/src/main/res/mipmap-xxhdpi
+          mkdir -p app/src/main/res/mipmap-xxxhdpi
+
+          # Buat bg_card.xml
+          cat << 'EOF' > app/src/main/res/drawable/bg_card.xml
+          <shape xmlns:android="http://schemas.android.com/apk/res/android">
+              <solid android:color="#1E1E2C"/>
+              <corners android:radius="16dp"/>
+          </shape>
+          EOF
+
+          # Buat bg_button.xml
+          cat << 'EOF' > app/src/main/res/drawable/bg_button.xml
+          <shape xmlns:android="http://schemas.android.com/apk/res/android">
+              <gradient 
+                  android:startColor="#6A11CB" 
+                  android:endColor="#2575FC" 
+                  android:angle="45"/>
+              <corners android:radius="12dp"/>
+          </shape>
+          EOF
+
+          # Buat bg_overlay_panel.xml
+          cat << 'EOF' > app/src/main/res/drawable/bg_overlay_panel.xml
+          <shape xmlns:android="http://schemas.android.com/apk/res/android">
+              <solid android:color="#EE11111E"/>
+              <corners android:radius="20dp"/>
+              <stroke android:width="1dp" android:color="#44FFFFFF"/>
+          </shape>
+          EOF
+
+          # Buat Icon Dummy
+          printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x00\x00\x02\x00\x01H\xaf\xa4q\x00\x00\x00\x00IEND\aeB`\x82' > app/src/main/res/mipmap-hdpi/ic_launcher.png
+          cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-mdpi/ic_launcher.png
+          cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+
       - name: Build Debug APK
         run: gradle assembleDebug
 
