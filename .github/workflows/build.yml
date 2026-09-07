@@ -24,31 +24,8 @@ jobs:
         with:
           gradle-version: '8.0'
 
-      - name: Generate Code and Build
-        run: |
-          rm -rf app settings.gradle build.gradle
-
-          echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle
-          echo 'dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS); repositories { google(); mavenCentral() } }' >> settings.gradle
-          echo 'rootProject.name = "Livechat-Reading"' >> settings.gradle
-          echo 'include ":app"' >> settings.gradle
-
-          echo 'plugins { id "com.android.application" version "8.1.1" apply false }' > build.gradle
-
-          mkdir -p app/src/main/java/com/example/bacachat
-          mkdir -p app/src/main/res/layout
-
-          echo 'plugins { id "com.android.application" }' > app/build.gradle
-          echo 'android { namespace "com.example.bacachat"; compileSdk 33; defaultConfig { applicationId "com.example.bacachat"; minSdk 21; targetSdk 33; versionCode 1; versionName "1.0" }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }' >> app/build.gradle
-          echo 'dependencies { implementation "androidx.appcompat:appcompat:1.6.1" }' >> app/build.gradle
-
-          echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://schemas.android.com/apk/res/android"><uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/><uses-permission android:name="android.permission.INTERNET"/><application android:allowBackup="true" android:label="Baca Livechat" android:supportsRtl="true" android:theme="@style/Theme.AppCompat.NoActionBar"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
-
-          echo 'package com.example.bacachat; import android.os.Bundle; import androidx.appcompat.app.AppCompatActivity; public class MainActivity extends AppCompatActivity { @Override protected void onCreate(Bundle savedInstanceState) { super.onCreate(savedInstanceState); setContentView(R.layout.activity_main); } }' > app/src/main/java/com/example/bacachat/MainActivity.java
-
-          echo '<?xml version="1.0" encoding="utf-8"?><LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical"><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Baca Livechat Active"/></LinearLayout>' > app/src/main/res/layout/activity_main.xml
-
-          gradle assembleDebug
+      - name: Build Debug APK
+        run: gradle assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
