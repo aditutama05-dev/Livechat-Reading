@@ -24,258 +24,31 @@ jobs:
         with:
           gradle-version: '8.0'
 
-      - name: Clean & Build Standalone APK
+      - name: Generate Code and Build
         run: |
-          # Bersihkan file lama agar tidak bentrok
           rm -rf app settings.gradle build.gradle
 
-          # 1. Buat settings.gradle
-          cat << 'EOF' > settings.gradle
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.name = "Livechat-Reading"
-          include ':app'
-          EOF
+          echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle
+          echo 'dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS); repositories { google(); mavenCentral() } }' >> settings.gradle
+          echo 'rootProject.name = "Livechat-Reading"' >> settings.gradle
+          echo 'include ":app"' >> settings.gradle
 
-          # 2. Buat Root build.gradle
-          cat << 'EOF' > build.gradle
-          plugins {
-              id 'com.android.application' version '8.1.1' apply false
-          }
-          EOF
+          echo 'plugins { id "com.android.application" version "8.1.1" apply false }' > build.gradle
 
-          # 3. Buat app/build.gradle
-          mkdir -p app
-          cat << 'EOF' > app/build.gradle
-          plugins {
-              id 'com.android.application'
-          }
-
-          android {
-              namespace 'com.example.bacachat'
-              compileSdk 33
-
-              defaultConfig {
-                  applicationId "com.example.bacachat"
-                  minSdk 21
-                  targetSdk 33
-                  versionCode 1
-                  versionName "1.0"
-              }
-
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-          }
-
-          dependencies {
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-          }
-          EOF
-
-          # 4. Buat AndroidManifest.xml
-          mkdir -p app/src/main
-          cat << 'EOF' > app/src/main/AndroidManifest.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-              <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
-              <uses-permission android:name="android.permission.INTERNET"/>
-
-              <application
-                  android:allowBackup="true"
-                  android:label="Baca Livechat"
-                  android:supportsRtl="true"
-                  android:theme="@style/Theme.AppCompat.NoActionBar">
-
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-
-                  <service
-                      android:name=".FloatingService"
-                      android:enabled="true"
-                      android:exported="false"/>
-
-              </application>
-
-          </manifest>
-          EOF
-
-          # 5. Buat File Java Source Code
           mkdir -p app/src/main/java/com/example/bacachat
-
-          cat << 'EOF' > app/src/main/java/com/example/bacachat/MainActivity.java
-          package com.example.bacachat;
-
-          import android.content.Intent;
-          import android.net.Uri;
-          import android.os.Build;
-          import android.os.Bundle;
-          import android.provider.Settings;
-          import android.view.View;
-          import android.widget.Button;
-          import android.widget.Toast;
-          import androidx.appcompat.app.AppCompatActivity;
-
-          public class MainActivity extends AppCompatActivity {
-
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  setContentView(R.layout.activity_main);
-
-                  Button btnStartOverlay = findViewById(R.id.btnStartOverlay);
-
-                  btnStartOverlay.setOnClickListener(new View.OnClickListener() {
-                      @Override
-                      public void onClick(View v) {
-                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(MainActivity.this)) {
-                              Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                      Uri.parse("package:" + getPackageName()));
-                              startActivityForResult(intent, 100);
-                          } else {
-                              startFloatingService();
-                          }
-                      }
-                  });
-              }
-
-              private void startFloatingService() {
-                  Intent serviceIntent = new Intent(MainActivity.this, FloatingService.class);
-                  startService(serviceIntent);
-                  Toast.makeText(this, "Ikon Melayang Aktif!", Toast.LENGTH_SHORT).show();
-              }
-          }
-          EOF
-
-          cat << 'EOF' > app/src/main/java/com/example/bacachat/FloatingService.java
-          package com.example.bacachat;
-
-          import android.app.Service;
-          import android.content.Intent;
-          import android.graphics.PixelFormat;
-          import android.os.Build;
-          import android.os.IBinder;
-          import android.view.Gravity;
-          import android.view.LayoutInflater;
-          import android.view.View;
-          import android.view.WindowManager;
-          import androidx.annotation.Nullable;
-
-          public class FloatingService extends Service {
-
-              private WindowManager windowManager;
-              private View floatingView;
-
-              @Nullable
-              @Override
-              public IBinder onBind(Intent intent) {
-                  return null;
-              }
-
-              @Override
-              public void onCreate() {
-                  super.onCreate();
-
-                  int layoutFlag;
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                      layoutFlag = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
-                  } else {
-                      layoutFlag = WindowManager.LayoutParams.TYPE_PHONE;
-                  }
-
-                  WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                          WindowManager.LayoutParams.WRAP_CONTENT,
-                          WindowManager.LayoutParams.WRAP_CONTENT,
-                          layoutFlag,
-                          WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                          PixelFormat.TRANSLUCENT
-                  );
-
-                  params.gravity = Gravity.TOP | Gravity.START;
-                  params.x = 100;
-                  params.y = 100;
-
-                  windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
-                  floatingView = LayoutInflater.from(this).inflate(R.layout.activity_main, null);
-
-                  if (windowManager != null && floatingView != null) {
-                      try {
-                          windowManager.addView(floatingView, params);
-                      } catch (Exception e) {
-                          e.printStackTrace();
-                      }
-                  }
-              }
-
-              @Override
-              public void onDestroy() {
-                  super.onDestroy();
-                  if (floatingView != null && windowManager != null) {
-                      try {
-                          windowManager.removeView(floatingView);
-                      } catch (Exception e) {
-                          e.printStackTrace();
-                      }
-                  }
-              }
-          }
-          EOF
-
-          # 6. Buat Layout XML
           mkdir -p app/src/main/res/layout
-          cat << 'EOF' > app/src/main/res/layout/activity_main.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:orientation="vertical"
-              android:gravity="center"
-              android:background="#121212"
-              android:padding="20dp">
 
-              <TextView
-                  android:layout_width="wrap_content"
-                  android:layout_height="wrap_content"
-                  android:text="📖 Baca Livechat Pro"
-                  android:textColor="#FFFFFF"
-                  android:textSize="22sp"
-                  android:textStyle="bold"
-                  android:layout_marginBottom="24dp"/>
+          echo 'plugins { id "com.android.application" }' > app/build.gradle
+          echo 'android { namespace "com.example.bacachat"; compileSdk 33; defaultConfig { applicationId "com.example.bacachat"; minSdk 21; targetSdk 33; versionCode 1; versionName "1.0" }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }' >> app/build.gradle
+          echo 'dependencies { implementation "androidx.appcompat:appcompat:1.6.1" }' >> app/build.gradle
 
-              <Button
-                  android:id="@+id/btnStartOverlay"
-                  android:layout_width="match_parent"
-                  android:layout_height="55dp"
-                  android:text="🚀 AKTIFKAN IKON MELAYANG"
-                  android:textColor="#FFFFFF"
-                  android:textSize="15sp"
-                  android:textStyle="bold"/>
+          echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://schemas.android.com/apk/res/android"><uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/><uses-permission android:name="android.permission.INTERNET"/><application android:allowBackup="true" android:label="Baca Livechat" android:supportsRtl="true" android:theme="@style/Theme.AppCompat.NoActionBar"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
 
-          </LinearLayout>
-          EOF
+          echo 'package com.example.bacachat; import android.os.Bundle; import androidx.appcompat.app.AppCompatActivity; public class MainActivity extends AppCompatActivity { @Override protected void onCreate(Bundle savedInstanceState) { super.onCreate(savedInstanceState); setContentView(R.layout.activity_main); } }' > app/src/main/java/com/example/bacachat/MainActivity.java
 
-          # Jalankan Kompilasi dengan Trace
-          gradle assembleDebug --stacktrace
+          echo '<?xml version="1.0" encoding="utf-8"?><LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical"><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Baca Livechat Active"/></LinearLayout>' > app/src/main/res/layout/activity_main.xml
+
+          gradle assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
