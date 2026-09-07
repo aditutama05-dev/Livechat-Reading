@@ -24,8 +24,11 @@ jobs:
         with:
           gradle-version: '8.0'
 
-      - name: Build Standalone APK
+      - name: Clean & Build Standalone APK
         run: |
+          # Bersihkan file lama agar tidak bentrok
+          rm -rf app settings.gradle build.gradle
+
           # 1. Buat settings.gradle
           cat << 'EOF' > settings.gradle
           pluginManagement {
@@ -271,8 +274,8 @@ jobs:
           </LinearLayout>
           EOF
 
-          # Jalankan Kompilasi
-          gradle assembleDebug
+          # Jalankan Kompilasi dengan Trace
+          gradle assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
