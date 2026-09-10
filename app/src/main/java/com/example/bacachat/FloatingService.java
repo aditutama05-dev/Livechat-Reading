@@ -4,6 +4,7 @@ import android.app.Service;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.IBinder;
 import android.speech.tts.TextToSpeech;
@@ -11,170 +12,428 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.Toast;
+import android.widget.TextView;
 
 import java.util.Locale;
 
-public class FloatingService extends Service implements TextToSpeech.OnInitListener {
+public class FloatingService extends Service {
 
     private WindowManager windowManager;
-    private View overlayBox;
-    private LinearLayout controlLayout;
-    private TextToSpeech tts;
+
+    private LinearLayout floatingContainer;
+    private TextView mainButton;
+    private TextView arrowButton;
+    private LinearLayout controlPanel;
+
+    private WindowManager.LayoutParams floatingParams;
+
     private boolean isLocked = false;
-    private boolean isHidden = false;
-    private boolean isLiveMode = true;
+    private boolean controlsVisible = false;
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
+    private int initialX;
+    private int initialY;
+    private float initialTouchX;
+    private float initialTouchY;
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null) {
-            isLiveMode = intent.getBooleanExtra("IS_LIVE_MODE", true);
-            if (!isLiveMode && overlayBox != null) {
-                overlayBox.setVisibility(View.GONE);
-            } else if (isLiveMode && overlayBox != null && !isHidden) {
-                overlayBox.setVisibility(View.VISIBLE);
-            }
-        }
-        return START_STICKY;
-    }
+    private TextToSpeech textToSpeech;
 
     @Override
     public void onCreate() {
         super.onCreate();
 
-        tts = new TextToSpeech(this, this);
-        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        windowManager =
+                (WindowManager) getSystemService(WINDOW_SERVICE);
 
-        int layoutType = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ?
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY :
-                WindowManager.LayoutParams.TYPE_PHONE;
+        setupTextToSpeech();
+        createFloatingButton();
+    }
 
-        overlayBox = new View(this);
-        overlayBox.setBackgroundColor(Color.parseColor("#3300FF88"));
+    private void setupTextToSpeech() {
 
-        final WindowManager.LayoutParams boxParams = new WindowManager.LayoutParams(
-                650, 450,
-                layoutType,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                PixelFormat.TRANSLUCENT
+        textToSpeech = new TextToSpeech(
+                this,
+                status -> {
+
+                    if (status == TextToSpeech.SUCCESS) {
+                        textToSpeech.setLanguage(
+                                new Locale("id", "ID")
+                        );
+                    }
+                }
         );
-        boxParams.gravity = Gravity.CENTER;
+    }
 
-        controlLayout = new LinearLayout(this);
-        controlLayout.setOrientation(LinearLayout.HORIZONTAL);
-        controlLayout.setPadding(20, 10, 20, 10);
+    private int getOverlayType() {
 
-        final Button btnLock = new Button(this);
-        btnLock.setText("🔒 Lock");
-
-        final Button btnHide = new Button(this);
-        btnHide.setText("👁️ Sembunyi");
-
-        final Button btnClose = new Button(this);
-        btnClose.setText("❌ Tutup");
-
-        controlLayout.addView(btnLock);
-        controlLayout.addView(btnHide);
-        controlLayout.addView(btnClose);
-
-        final WindowManager.LayoutParams controlParams = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                layoutType,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                PixelFormat.TRANSLUCENT
-        );
-        controlParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-        controlParams.y = 120;
-
-        try {
-            windowManager.addView(overlayBox, boxParams);
-            windowManager.addView(controlLayout, controlParams);
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            return WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
         }
 
-        overlayBox.setOnTouchListener(new View.OnTouchListener() {
-            private int initialX, initialY;
-            private float initialTouchX, initialTouchY;
+        return WindowManager.LayoutParams.TYPE_PHONE;
+    }
 
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                if (isLocked) return false;
+    private GradientDrawable createBackground(
+            int color,
+            float radius
+    ) {
 
-                switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                        initialX = boxParams.x;
-                        initialY = boxParams.y;
-                        initialTouchX = event.getRawX();
-                        initialTouchY = event.getRawY();
-                        return true;
+        GradientDrawable drawable =
+                new GradientDrawable();
 
-                    case MotionEvent.ACTION_MOVE:
-                        boxParams.x = initialX + (int) (event.getRawX() - initialTouchX);
-                        boxParams.y = initialY + (int) (event.getRawY() - initialTouchY);
-                        try {
-                            windowManager.updateViewLayout(overlayBox, boxParams);
-                        } catch (Exception ignored) {}
-                        return true;
-                }
-                return false;
-            }
+        drawable.setColor(color);
+        drawable.setCornerRadius(radius);
+
+        return drawable;
+    }
+
+    private void createFloatingButton() {
+
+        floatingContainer =
+                new LinearLayout(this);
+
+        floatingContainer.setOrientation(
+                LinearLayout.VERTICAL
+        );
+
+        floatingContainer.setGravity(
+                Gravity.CENTER_HORIZONTAL
+        );
+
+        mainButton =
+                new TextView(this);
+
+        mainButton.setText("●");
+        mainButton.setTextColor(Color.WHITE);
+        mainButton.setTextSize(28);
+        mainButton.setGravity(Gravity.CENTER);
+
+        mainButton.setBackground(
+                createBackground(
+                        Color.rgb(40, 40, 40),
+                        100
+                )
+        );
+
+        arrowButton =
+                new TextView(this);
+
+        arrowButton.setText("▼");
+        arrowButton.setTextColor(Color.WHITE);
+        arrowButton.setTextSize(18);
+        arrowButton.setGravity(Gravity.CENTER);
+
+        arrowButton.setBackground(
+                createBackground(
+                        Color.rgb(55, 55, 55),
+                        30
+                )
+        );
+
+        int buttonSize =
+                dpToPx(72);
+
+        LinearLayout.LayoutParams mainParams =
+                new LinearLayout.LayoutParams(
+                        buttonSize,
+                        buttonSize
+                );
+
+        LinearLayout.LayoutParams arrowParams =
+                new LinearLayout.LayoutParams(
+                        dpToPx(72),
+                        dpToPx(38)
+                );
+
+        arrowParams.topMargin =
+                dpToPx(-2);
+
+        floatingContainer.addView(
+                mainButton,
+                mainParams
+        );
+
+        floatingContainer.addView(
+                arrowButton,
+                arrowParams
+        );
+
+        floatingParams =
+                new WindowManager.LayoutParams(
+                        dpToPx(90),
+                        dpToPx(115),
+                        getOverlayType(),
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                        PixelFormat.TRANSLUCENT
+                );
+
+        floatingParams.gravity =
+                Gravity.TOP | Gravity.START;
+
+        floatingParams.x =
+                dpToPx(20);
+
+        floatingParams.y =
+                dpToPx(200);
+
+        windowManager.addView(
+                floatingContainer,
+                floatingParams
+        );
+
+        mainButton.setOnTouchListener(
+                this::handleMainButtonTouch
+        );
+
+        arrowButton.setOnClickListener(
+                v -> toggleControls()
+        );
+    }
+
+    private boolean handleMainButtonTouch(
+            View view,
+            MotionEvent event
+    ) {
+
+        if (isLocked) {
+            return true;
+        }
+
+        switch (event.getAction()) {
+
+            case MotionEvent.ACTION_DOWN:
+
+                initialX =
+                        floatingParams.x;
+
+                initialY =
+                        floatingParams.y;
+
+                initialTouchX =
+                        event.getRawX();
+
+                initialTouchY =
+                        event.getRawY();
+
+                return true;
+
+            case MotionEvent.ACTION_MOVE:
+
+                int newX =
+                        initialX +
+                        (int) (
+                                event.getRawX()
+                                        - initialTouchX
+                        );
+
+                int newY =
+                        initialY +
+                        (int) (
+                                event.getRawY()
+                                        - initialTouchY
+                        );
+
+                floatingParams.x =
+                        newX;
+
+                floatingParams.y =
+                        newY;
+
+                windowManager.updateViewLayout(
+                        floatingContainer,
+                        floatingParams
+                );
+
+                return true;
+
+            case MotionEvent.ACTION_UP:
+
+                return true;
+        }
+
+        return false;
+    }
+
+    private void toggleControls() {
+
+        controlsVisible =
+                !controlsVisible;
+
+        if (controlsVisible) {
+            showControlPanel();
+        } else {
+            hideControlPanel();
+        }
+    }
+
+    private void showControlPanel() {
+
+        if (controlPanel != null) {
+            return;
+        }
+
+        controlPanel =
+                new LinearLayout(this);
+
+        controlPanel.setOrientation(
+                LinearLayout.HORIZONTAL
+        );
+
+        controlPanel.setGravity(
+                Gravity.CENTER
+        );
+
+        TextView lockButton =
+                createControlButton(
+                        isLocked ? "Buka" : "Kunci"
+                );
+
+        TextView closeButton =
+                createControlButton(
+                        "Tutup"
+                );
+
+        controlPanel.addView(lockButton);
+
+        controlPanel.addView(closeButton);
+
+        WindowManager.LayoutParams panelParams =
+                new WindowManager.LayoutParams(
+                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        dpToPx(55),
+                        getOverlayType(),
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                        PixelFormat.TRANSLUCENT
+                );
+
+        panelParams.gravity =
+                Gravity.TOP | Gravity.START;
+
+        panelParams.x =
+                floatingParams.x;
+
+        panelParams.y =
+                floatingParams.y
+                        + dpToPx(120);
+
+        windowManager.addView(
+                controlPanel,
+                panelParams
+        );
+
+        lockButton.setOnClickListener(v -> {
+
+            isLocked =
+                    !isLocked;
+
+            lockButton.setText(
+                    isLocked ? "Buka" : "Kunci"
+            );
         });
 
-        btnLock.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                isLocked = !isLocked;
-                btnLock.setText(isLocked ? "🔒 Terkunci" : "🔓 Lock");
-                Toast.makeText(FloatingService.this, isLocked ? "Kotak Terkunci" : "Kotak Bebas Digeser", Toast.LENGTH_SHORT).show();
-            }
-        });
+        closeButton.setOnClickListener(v -> {
 
-        btnHide.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                isHidden = !isHidden;
-                if (isLiveMode) {
-                    overlayBox.setVisibility(isHidden ? View.GONE : View.VISIBLE);
-                }
-                btnHide.setText(isHidden ? "👁️ Tampil" : "👁️ Sembunyi");
-            }
-        });
-
-        btnClose.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                stopSelf();
-            }
+            stopSelf();
         });
     }
 
-    @Override
-    public void onInit(int status) {
-        if (status == TextToSpeech.SUCCESS) {
-            tts.setLanguage(new Locale("id", "ID"));
+    private TextView createControlButton(
+            String text
+    ) {
+
+        TextView button =
+                new TextView(this);
+
+        button.setText(text);
+        button.setTextColor(Color.WHITE);
+        button.setTextSize(16);
+        button.setGravity(Gravity.CENTER);
+
+        button.setPadding(
+                dpToPx(18),
+                0,
+                dpToPx(18),
+                0
+        );
+
+        button.setBackground(
+                createBackground(
+                        Color.rgb(50, 50, 50),
+                        20
+                )
+        );
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(
+                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        dpToPx(50)
+                );
+
+        params.setMargins(
+                dpToPx(4),
+                dpToPx(2),
+                dpToPx(4),
+                dpToPx(2)
+        );
+
+        button.setLayoutParams(params);
+
+        return button;
+    }
+
+    private void hideControlPanel() {
+
+        if (controlPanel != null) {
+
+            windowManager.removeView(
+                    controlPanel
+            );
+
+            controlPanel =
+                    null;
         }
+    }
+
+    private int dpToPx(int dp) {
+
+        float density =
+                getResources()
+                        .getDisplayMetrics()
+                        .density;
+
+        return (int) (
+                dp * density
+        );
     }
 
     @Override
     public void onDestroy() {
-        super.onDestroy();
-        if (tts != null) {
-            tts.stop();
-            tts.shutdown();
+
+        hideControlPanel();
+
+        if (floatingContainer != null) {
+
+            windowManager.removeView(
+                    floatingContainer
+            );
+
+            floatingContainer =
+                    null;
         }
-        try {
-            if (overlayBox != null) windowManager.removeView(overlayBox);
-            if (controlLayout != null) windowManager.removeView(controlLayout);
-        } catch (Exception ignored) {}
+
+        if (textToSpeech != null) {
+
+            textToSpeech.stop();
+            textToSpeech.shutdown();
+            textToSpeech = null;
+        }
+
+        super.onDestroy();
     }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+
+        return null;
     }
-          
+            }
