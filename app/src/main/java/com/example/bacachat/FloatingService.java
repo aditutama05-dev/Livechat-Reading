@@ -7,15 +7,12 @@ import android.graphics.PixelFormat;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.IBinder;
-import android.speech.tts.TextToSpeech;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-
-import java.util.Locale;
 
 public class FloatingService extends Service {
 
@@ -26,9 +23,13 @@ public class FloatingService extends Service {
     private TextView arrowButton;
     private LinearLayout controlPanel;
 
-    private WindowManager.LayoutParams floatingParams;
+    private View regionBox;
 
-    private boolean isLocked = false;
+    private WindowManager.LayoutParams floatingParams;
+    private WindowManager.LayoutParams regionParams;
+
+    private boolean floatingLocked = false;
+    private boolean regionLocked = false;
     private boolean controlsVisible = false;
 
     private int initialX;
@@ -36,7 +37,10 @@ public class FloatingService extends Service {
     private float initialTouchX;
     private float initialTouchY;
 
-    private TextToSpeech textToSpeech;
+    private int initialRegionX;
+    private int initialRegionY;
+    private float initialRegionTouchX;
+    private float initialRegionTouchY;
 
     @Override
     public void onCreate() {
@@ -45,23 +49,8 @@ public class FloatingService extends Service {
         windowManager =
                 (WindowManager) getSystemService(WINDOW_SERVICE);
 
-        setupTextToSpeech();
+        createRegionBox();
         createFloatingButton();
-    }
-
-    private void setupTextToSpeech() {
-
-        textToSpeech = new TextToSpeech(
-                this,
-                status -> {
-
-                    if (status == TextToSpeech.SUCCESS) {
-                        textToSpeech.setLanguage(
-                                new Locale("id", "ID")
-                        );
-                    }
-                }
-        );
     }
 
     private int getOverlayType() {
@@ -71,6 +60,16 @@ public class FloatingService extends Service {
         }
 
         return WindowManager.LayoutParams.TYPE_PHONE;
+    }
+
+    private int dpToPx(int dp) {
+
+        float density =
+                getResources()
+                        .getDisplayMetrics()
+                        .density;
+
+        return (int) (dp * density);
     }
 
     private GradientDrawable createBackground(
@@ -85,6 +84,113 @@ public class FloatingService extends Service {
         drawable.setCornerRadius(radius);
 
         return drawable;
+    }
+
+    private void createRegionBox() {
+
+        regionBox = new View(this);
+
+        GradientDrawable border =
+                new GradientDrawable();
+
+        border.setColor(
+                Color.argb(35, 255, 255, 255)
+        );
+
+        border.setStroke(
+                dpToPx(3),
+                Color.WHITE
+        );
+
+        regionBox.setBackground(border);
+
+        regionParams =
+                new WindowManager.LayoutParams(
+                        dpToPx(300),
+                        dpToPx(180),
+                        getOverlayType(),
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                        PixelFormat.TRANSLUCENT
+                );
+
+        regionParams.gravity =
+                Gravity.TOP | Gravity.START;
+
+        regionParams.x =
+                dpToPx(40);
+
+        regionParams.y =
+                dpToPx(300);
+
+        windowManager.addView(
+                regionBox,
+                regionParams
+        );
+
+        regionBox.setOnTouchListener(
+                this::handleRegionTouch
+        );
+    }
+
+    private boolean handleRegionTouch(
+            View view,
+            MotionEvent event
+    ) {
+
+        if (regionLocked) {
+            return true;
+        }
+
+        switch (event.getAction()) {
+
+            case MotionEvent.ACTION_DOWN:
+
+                initialRegionX =
+                        regionParams.x;
+
+                initialRegionY =
+                        regionParams.y;
+
+                initialRegionTouchX =
+                        event.getRawX();
+
+                initialRegionTouchY =
+                        event.getRawY();
+
+                return true;
+
+            case MotionEvent.ACTION_MOVE:
+
+                int newX =
+                        initialRegionX +
+                        (int) (
+                                event.getRawX()
+                                        - initialRegionTouchX
+                        );
+
+                int newY =
+                        initialRegionY +
+                        (int) (
+                                event.getRawY()
+                                        - initialRegionTouchY
+                        );
+
+                regionParams.x = newX;
+                regionParams.y = newY;
+
+                windowManager.updateViewLayout(
+                        regionBox,
+                        regionParams
+                );
+
+                return true;
+
+            case MotionEvent.ACTION_UP:
+
+                return true;
+        }
+
+        return false;
     }
 
     private void createFloatingButton() {
@@ -174,7 +280,7 @@ public class FloatingService extends Service {
                 dpToPx(20);
 
         floatingParams.y =
-                dpToPx(200);
+                dpToPx(150);
 
         windowManager.addView(
                 floatingContainer,
@@ -182,7 +288,7 @@ public class FloatingService extends Service {
         );
 
         mainButton.setOnTouchListener(
-                this::handleMainButtonTouch
+                this::handleFloatingTouch
         );
 
         arrowButton.setOnClickListener(
@@ -190,12 +296,12 @@ public class FloatingService extends Service {
         );
     }
 
-    private boolean handleMainButtonTouch(
+    private boolean handleFloatingTouch(
             View view,
             MotionEvent event
     ) {
 
-        if (isLocked) {
+        if (floatingLocked) {
             return true;
         }
 
@@ -219,25 +325,19 @@ public class FloatingService extends Service {
 
             case MotionEvent.ACTION_MOVE:
 
-                int newX =
+                floatingParams.x =
                         initialX +
                         (int) (
                                 event.getRawX()
                                         - initialTouchX
                         );
 
-                int newY =
+                floatingParams.y =
                         initialY +
                         (int) (
                                 event.getRawY()
                                         - initialTouchY
                         );
-
-                floatingParams.x =
-                        newX;
-
-                floatingParams.y =
-                        newY;
 
                 windowManager.updateViewLayout(
                         floatingContainer,
@@ -276,16 +376,25 @@ public class FloatingService extends Service {
                 new LinearLayout(this);
 
         controlPanel.setOrientation(
-                LinearLayout.HORIZONTAL
+                LinearLayout.VERTICAL
         );
 
         controlPanel.setGravity(
                 Gravity.CENTER
         );
 
-        TextView lockButton =
+        TextView lockRegion =
                 createControlButton(
-                        isLocked ? "Buka" : "Kunci"
+                        regionLocked
+                                ? "Buka Area"
+                                : "Kunci Area"
+                );
+
+        TextView lockFloating =
+                createControlButton(
+                        floatingLocked
+                                ? "Buka Tombol"
+                                : "Kunci Tombol"
                 );
 
         TextView closeButton =
@@ -293,14 +402,14 @@ public class FloatingService extends Service {
                         "Tutup"
                 );
 
-        controlPanel.addView(lockButton);
-
+        controlPanel.addView(lockRegion);
+        controlPanel.addView(lockFloating);
         controlPanel.addView(closeButton);
 
         WindowManager.LayoutParams panelParams =
                 new WindowManager.LayoutParams(
+                        dpToPx(150),
                         WindowManager.LayoutParams.WRAP_CONTENT,
-                        dpToPx(55),
                         getOverlayType(),
                         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                         PixelFormat.TRANSLUCENT
@@ -313,28 +422,41 @@ public class FloatingService extends Service {
                 floatingParams.x;
 
         panelParams.y =
-                floatingParams.y
-                        + dpToPx(120);
+                floatingParams.y +
+                        dpToPx(120);
 
         windowManager.addView(
                 controlPanel,
                 panelParams
         );
 
-        lockButton.setOnClickListener(v -> {
+        lockRegion.setOnClickListener(v -> {
 
-            isLocked =
-                    !isLocked;
+            regionLocked =
+                    !regionLocked;
 
-            lockButton.setText(
-                    isLocked ? "Buka" : "Kunci"
+            lockRegion.setText(
+                    regionLocked
+                            ? "Buka Area"
+                            : "Kunci Area"
             );
         });
 
-        closeButton.setOnClickListener(v -> {
+        lockFloating.setOnClickListener(v -> {
 
-            stopSelf();
+            floatingLocked =
+                    !floatingLocked;
+
+            lockFloating.setText(
+                    floatingLocked
+                            ? "Buka Tombol"
+                            : "Kunci Tombol"
+            );
         });
+
+        closeButton.setOnClickListener(
+                v -> stopSelf()
+        );
     }
 
     private TextView createControlButton(
@@ -346,34 +468,34 @@ public class FloatingService extends Service {
 
         button.setText(text);
         button.setTextColor(Color.WHITE);
-        button.setTextSize(16);
+        button.setTextSize(15);
         button.setGravity(Gravity.CENTER);
 
         button.setPadding(
-                dpToPx(18),
-                0,
-                dpToPx(18),
-                0
+                dpToPx(10),
+                dpToPx(10),
+                dpToPx(10),
+                dpToPx(10)
         );
 
         button.setBackground(
                 createBackground(
                         Color.rgb(50, 50, 50),
-                        20
+                        15
                 )
         );
 
         LinearLayout.LayoutParams params =
                 new LinearLayout.LayoutParams(
-                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        dpToPx(140),
                         dpToPx(50)
                 );
 
         params.setMargins(
-                dpToPx(4),
-                dpToPx(2),
-                dpToPx(4),
-                dpToPx(2)
+                dpToPx(3),
+                dpToPx(3),
+                dpToPx(3),
+                dpToPx(3)
         );
 
         button.setLayoutParams(params);
@@ -389,21 +511,8 @@ public class FloatingService extends Service {
                     controlPanel
             );
 
-            controlPanel =
-                    null;
+            controlPanel = null;
         }
-    }
-
-    private int dpToPx(int dp) {
-
-        float density =
-                getResources()
-                        .getDisplayMetrics()
-                        .density;
-
-        return (int) (
-                dp * density
-        );
     }
 
     @Override
@@ -411,21 +520,22 @@ public class FloatingService extends Service {
 
         hideControlPanel();
 
+        if (regionBox != null) {
+
+            windowManager.removeView(
+                    regionBox
+            );
+
+            regionBox = null;
+        }
+
         if (floatingContainer != null) {
 
             windowManager.removeView(
                     floatingContainer
             );
 
-            floatingContainer =
-                    null;
-        }
-
-        if (textToSpeech != null) {
-
-            textToSpeech.stop();
-            textToSpeech.shutdown();
-            textToSpeech = null;
+            floatingContainer = null;
         }
 
         super.onDestroy();
@@ -433,7 +543,6 @@ public class FloatingService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-
         return null;
     }
-            }
+        }
