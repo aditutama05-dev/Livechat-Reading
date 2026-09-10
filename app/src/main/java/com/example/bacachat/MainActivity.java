@@ -5,7 +5,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
@@ -19,42 +18,38 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         setContentView(R.layout.activity_main);
 
         swAutoRead = findViewById(R.id.swAutoRead);
 
         Button btnStartOverlay = findViewById(R.id.btnStartOverlay);
 
-        btnStartOverlay.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        btnStartOverlay.setOnClickListener(v -> {
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                        && !Settings.canDrawOverlays(MainActivity.this)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                    && !Settings.canDrawOverlays(this)) {
 
-                    Intent intent = new Intent(
-                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            Uri.parse("package:" + getPackageName())
-                    );
+                Intent intent = new Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + getPackageName())
+                );
 
-                    startActivity(intent);
+                startActivity(intent);
 
-                } else {
-                    startFloatingService();
-                }
+            } else {
+                startFloatingService();
             }
         });
     }
 
     private void startFloatingService() {
 
-        boolean isAutoRead = swAutoRead.isChecked();
+        boolean autoRead = swAutoRead.isChecked();
 
         Intent serviceIntent =
-                new Intent(MainActivity.this, FloatingService.class);
+                new Intent(this, FloatingService.class);
 
-        serviceIntent.putExtra("IS_AUTO_READ", isAutoRead);
+        serviceIntent.putExtra("IS_AUTO_READ", autoRead);
 
         startService(serviceIntent);
 
