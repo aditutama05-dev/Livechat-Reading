@@ -11,6 +11,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -23,7 +24,9 @@ public class FloatingService extends Service {
     private TextView arrowButton;
     private LinearLayout controlPanel;
 
+    private FrameLayout regionContainer;
     private View regionBox;
+    private View resizeHandle;
 
     private WindowManager.LayoutParams floatingParams;
     private WindowManager.LayoutParams regionParams;
@@ -41,6 +44,14 @@ public class FloatingService extends Service {
     private int initialRegionY;
     private float initialRegionTouchX;
     private float initialRegionTouchY;
+
+    private int initialRegionWidth;
+    private int initialRegionHeight;
+    private float initialResizeTouchX;
+    private float initialResizeTouchY;
+
+    private final int MIN_REGION_WIDTH_DP = 120;
+    private final int MIN_REGION_HEIGHT_DP = 80;
 
     @Override
     public void onCreate() {
@@ -88,7 +99,11 @@ public class FloatingService extends Service {
 
     private void createRegionBox() {
 
-        regionBox = new View(this);
+        regionContainer =
+                new FrameLayout(this);
+
+        regionBox =
+                new View(this);
 
         GradientDrawable border =
                 new GradientDrawable();
@@ -103,6 +118,48 @@ public class FloatingService extends Service {
         );
 
         regionBox.setBackground(border);
+
+        regionContainer.addView(
+                regionBox,
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                )
+        );
+
+        resizeHandle =
+                new View(this);
+
+        GradientDrawable handleBackground =
+                createBackground(
+                        Color.WHITE,
+                        dpToPx(20)
+                );
+
+        resizeHandle.setBackground(
+                handleBackground
+        );
+
+        FrameLayout.LayoutParams handleParams =
+                new FrameLayout.LayoutParams(
+                        dpToPx(30),
+                        dpToPx(30)
+                );
+
+        handleParams.gravity =
+                Gravity.BOTTOM | Gravity.END;
+
+        handleParams.setMargins(
+                0,
+                0,
+                dpToPx(5),
+                dpToPx(5)
+        );
+
+        regionContainer.addView(
+                resizeHandle,
+                handleParams
+        );
 
         regionParams =
                 new WindowManager.LayoutParams(
@@ -123,16 +180,20 @@ public class FloatingService extends Service {
                 dpToPx(300);
 
         windowManager.addView(
-                regionBox,
+                regionContainer,
                 regionParams
         );
 
         regionBox.setOnTouchListener(
-                this::handleRegionTouch
+                this::handleRegionMove
+        );
+
+        resizeHandle.setOnTouchListener(
+                this::handleRegionResize
         );
     }
 
-    private boolean handleRegionTouch(
+    private boolean handleRegionMove(
             View view,
             MotionEvent event
     ) {
@@ -161,25 +222,102 @@ public class FloatingService extends Service {
 
             case MotionEvent.ACTION_MOVE:
 
-                int newX =
+                regionParams.x =
                         initialRegionX +
                         (int) (
                                 event.getRawX()
                                         - initialRegionTouchX
                         );
 
-                int newY =
+                regionParams.y =
                         initialRegionY +
                         (int) (
                                 event.getRawY()
                                         - initialRegionTouchY
                         );
 
-                regionParams.x = newX;
-                regionParams.y = newY;
+                windowManager.updateViewLayout(
+                        regionContainer,
+                        regionParams
+                );
+
+                return true;
+
+            case MotionEvent.ACTION_UP:
+
+                return true;
+        }
+
+        return false;
+    }
+
+    private boolean handleRegionResize(
+            View view,
+            MotionEvent event
+    ) {
+
+        if (regionLocked) {
+            return true;
+        }
+
+        switch (event.getAction()) {
+
+            case MotionEvent.ACTION_DOWN:
+
+                initialRegionWidth =
+                        regionParams.width;
+
+                initialRegionHeight =
+                        regionParams.height;
+
+                initialResizeTouchX =
+                        event.getRawX();
+
+                initialResizeTouchY =
+                        event.getRawY();
+
+                return true;
+
+            case MotionEvent.ACTION_MOVE:
+
+                int newWidth =
+                        initialRegionWidth +
+                        (int) (
+                                event.getRawX()
+                                        - initialResizeTouchX
+                        );
+
+                int newHeight =
+                        initialRegionHeight +
+                        (int) (
+                                event.getRawY()
+                                        - initialResizeTouchY
+                        );
+
+                newWidth =
+                        Math.max(
+                                newWidth,
+                                dpToPx(
+                                        MIN_REGION_WIDTH_DP
+                                )
+                        );
+
+                newHeight =
+                        Math.max(
+                                newHeight,
+                                dpToPx(
+                                        MIN_REGION_HEIGHT_DP
+                                )
+                        );
+
+                regionParams.width =
+                        newWidth;
+
+                regionParams.height =
+                        newHeight;
 
                 windowManager.updateViewLayout(
-                        regionBox,
+                        regionContainer,
                         regionParams
                 );
 
@@ -520,13 +658,13 @@ public class FloatingService extends Service {
 
         hideControlPanel();
 
-        if (regionBox != null) {
+        if (regionContainer != null) {
 
             windowManager.removeView(
-                    regionBox
+                    regionContainer
             );
 
-            regionBox = null;
+            regionContainer = null;
         }
 
         if (floatingContainer != null) {
@@ -545,4 +683,4 @@ public class FloatingService extends Service {
     public IBinder onBind(Intent intent) {
         return null;
     }
-        }
+            }
