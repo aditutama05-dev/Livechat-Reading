@@ -22,34 +22,48 @@ public class MainActivity extends AppCompatActivity {
 
         swAutoRead = findViewById(R.id.swAutoRead);
 
-        Button btnStartOverlay = findViewById(R.id.btnStartOverlay);
+        Button btnStartOverlay =
+                findViewById(R.id.btnStartOverlay);
 
         btnStartOverlay.setOnClickListener(v -> {
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
                     && !Settings.canDrawOverlays(this)) {
 
-                Intent intent = new Intent(
-                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:" + getPackageName())
-                );
+                Intent intent =
+                        new Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse(
+                                        "package:" + getPackageName()
+                                )
+                        );
 
                 startActivity(intent);
 
             } else {
+
                 startFloatingService();
+
+                openAccessibilitySettings();
             }
         });
     }
 
     private void startFloatingService() {
 
-        boolean autoRead = swAutoRead.isChecked();
+        boolean autoRead =
+                swAutoRead.isChecked();
 
         Intent serviceIntent =
-                new Intent(this, FloatingService.class);
+                new Intent(
+                        this,
+                        FloatingService.class
+                );
 
-        serviceIntent.putExtra("IS_AUTO_READ", autoRead);
+        serviceIntent.putExtra(
+                "IS_AUTO_READ",
+                autoRead
+        );
 
         startService(serviceIntent);
 
@@ -59,4 +73,25 @@ public class MainActivity extends AppCompatActivity {
                 Toast.LENGTH_SHORT
         ).show();
     }
-}
+
+    private void openAccessibilitySettings() {
+
+        try {
+
+            Intent intent =
+                    new Intent(
+                            Settings.ACTION_ACCESSIBILITY_SETTINGS
+                    );
+
+            startActivity(intent);
+
+        } catch (Exception e) {
+
+            Toast.makeText(
+                    this,
+                    "Pengaturan Accessibility tidak dapat dibuka",
+                    Toast.LENGTH_LONG
+            ).show();
+        }
+    }
+            }
