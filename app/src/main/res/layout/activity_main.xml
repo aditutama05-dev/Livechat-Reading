@@ -1,114 +1,139 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#121212"
-    android:padding="20dp">
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:padding="24dp">
 
         <TextView
-            android:layout_width="wrap_content"
+            android:id="@+id/tvTitle"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="📖 Baca Livechat Pro"
+            android:text="Live Chat Reader"
             android:textColor="#FFFFFF"
-            android:textSize="22sp"
+            android:textSize="28sp"
             android:textStyle="bold"
-            android:layout_marginBottom="16dp"/>
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:id="@+id/tvSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Baca teks di layar dengan suara"
+            android:textColor="#BDBDBD"
+            android:textSize="16sp"
+            android:layout_marginBottom="28dp"/>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp"
+            android:background="#1E1E1E"
+            android:padding="20dp"
             android:layout_marginBottom="16dp">
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="PILIH MODE BACA"
-                android:textColor="#888888"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="10dp"/>
-
-            <RadioGroup
-                android:id="@+id/rgMode"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <RadioButton
-                    android:id="@+id/rbLiveStream"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="🎥 Mode Live Stream (Kotak Overlay Chat)"
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:checked="true"
-                    android:padding="8dp"/>
-
-                <RadioButton
-                    android:id="@+id/rbReadingBiasa"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="📄 Mode Reading Biasa (Aksesibilitas)"
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:padding="8dp"/>
-            </RadioGroup>
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="PENGATURAN SUARA"
-                android:textColor="#888888"
-                android:textSize="12sp"
+                android:text="PEMBACAAN OTOMATIS"
+                android:textColor="#9E9E9E"
+                android:textSize="13sp"
                 android:textStyle="bold"
-                android:layout_marginBottom="10dp"/>
+                android:layout_marginBottom="14dp"/>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="🔊 Baca Otomatis (TTS)"
+                    android:text="Baca chat baru secara otomatis"
                     android:textColor="#FFFFFF"
-                    android:textSize="14sp"/>
+                    android:textSize="17sp"/>
 
                 <androidx.appcompat.widget.SwitchCompat
                     android:id="@+id/swAutoRead"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:checked="true"/>
+                    android:checked="true"
+                    android:contentDescription="Baca chat baru secara otomatis"/>
             </LinearLayout>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#1E1E1E"
+            android:padding="20dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="INTERVAL PEMBACAAN"
+                android:textColor="#9E9E9E"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="10dp"/>
+
+            <TextView
+                android:id="@+id/tvInterval"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Setelah fitur otomatis aktif, interval dapat diatur."
+                android:textColor="#BDBDBD"
+                android:textSize="15sp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#1E1E1E"
+            android:padding="20dp"
+            android:layout_marginBottom="24dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="FLOATING BUTTON"
+                android:textColor="#9E9E9E"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="10dp"/>
+
+            <TextView
+                android:id="@+id/tvFloatingInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ukuran tombol dapat diatur agar nyaman digunakan."
+                android:textColor="#BDBDBD"
+                android:textSize="15sp"/>
         </LinearLayout>
 
         <Button
             android:id="@+id/btnStartOverlay"
             android:layout_width="match_parent"
-            android:layout_height="55dp"
-            android:text="🚀 AKTIFKAN IKON MELAYANG"
-            android:textColor="#FFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold"/>
+            android:layout_height="60dp"
+            android:text="AKTIFKAN LIVE CHAT READER"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:contentDescription="Aktifkan Live Chat Reader"/>
 
     </LinearLayout>
+
 </ScrollView>
-                    
