@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Live Chat Reader</string>
+
+    <string name="accessibility_service_description">
+        Membaca teks pada layar dengan suara untuk membantu pengguna mengakses isi layar.
+    </string>
+
+</resources>
