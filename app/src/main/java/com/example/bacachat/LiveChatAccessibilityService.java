@@ -1,77 +1,112 @@
 package com.example.bacachat;
 
 import android.accessibilityservice.AccessibilityService;
+import android.os.Handler;
+import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 
 public class LiveChatAccessibilityService extends AccessibilityService {
 
-    private TextToSpeech textToSpeech;
-
+    private TextToSpeech tts;
     private String lastText = "";
+    private final Handler handler = new Handler(Looper.getMainLooper());
+
+    private final Runnable pendingRead = new Runnable() {
+        @Override
+        public void run() {
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+
+            if (root == null) {
+                return;
+            }
+
+            String text = collectVisibleText(root);
+
+            if (text.isEmpty()) {
+                return;
+            }
+
+            if (!text.equals(lastText)) {
+                lastText = text;
+
+                if (tts != null &&
+                        tts.getEngines() != null &&
+                        !tts.isSpeaking()) {
+
+                    tts.speak(
+                            text,
+                            TextToSpeech.QUEUE_FLUSH,
+                            null,
+                            "livechat_read"
+                    );
+                }
+            }
+
+            root.recycle();
+        }
+    };
 
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
 
-        textToSpeech =
-                new TextToSpeech(
-                        this,
-                        status -> {
-
-                            if (status == TextToSpeech.SUCCESS) {
-
-                                textToSpeech.setLanguage(
-                                        new Locale("id", "ID")
-                                );
-                            }
-                        }
-                );
+        tts = new TextToSpeech(this, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+                tts.setLanguage(new Locale("id", "ID"));
+                tts.setSpeechRate(1.0f);
+            }
+        });
     }
 
     @Override
-    public void onAccessibilityEvent(
-            AccessibilityEvent event
-    ) {
+    public void onAccessibilityEvent(AccessibilityEvent event) {
 
-        if (event.getEventType()
-                != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
-                && event.getEventType()
-                != AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
+        int type = event.getEventType();
 
-            return;
+        if (type == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+                || type == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
+                || type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+
+            handler.removeCallbacks(pendingRead);
+
+            // Debounce supaya perubahan UI yang terjadi beruntun
+            // tidak langsung membuat banyak pembacaan.
+            handler.postDelayed(pendingRead, 500);
         }
+    }
 
-        AccessibilityNodeInfo root =
-                getRootInActiveWindow();
-
-        if (root == null) {
-            return;
+    @Override
+    public void onInterrupt() {
+        if (tts != null) {
+            tts.stop();
         }
+    }
 
-        List<String> texts =
-                new ArrayList<>();
+    private String collectVisibleText(AccessibilityNodeInfo node) {
 
-        collectText(
-                root,
-                texts
-        );
+        Set<String> uniqueTexts = new HashSet<>();
 
-        root.recycle();
+        collectNodeText(node, uniqueTexts);
 
-        if (texts.isEmpty()) {
-            return;
-        }
+        StringBuilder result = new StringBuilder();
 
-        StringBuilder result =
-                new StringBuilder();
+        for (String text : uniqueTexts) {
 
-        for (String text : texts) {
+            if (text == null) {
+                continue;
+            }
+
+            text = text.trim();
+
+            if (text.isEmpty()) {
+                continue;
+            }
 
             if (result.length() > 0) {
                 result.append(". ");
@@ -80,113 +115,59 @@ public class LiveChatAccessibilityService extends AccessibilityService {
             result.append(text);
         }
 
-        String currentText =
-                result.toString().trim();
-
-        if (currentText.isEmpty()) {
-            return;
-        }
-
-        if (currentText.equals(lastText)) {
-            return;
-        }
-
-        lastText = currentText;
-
-        speak(currentText);
+        return result.toString();
     }
 
-    private void collectText(
+    private void collectNodeText(
             AccessibilityNodeInfo node,
-            List<String> texts
-    ) {
+            Set<String> result) {
 
         if (node == null) {
             return;
         }
 
-        CharSequence text =
-                node.getText();
+        CharSequence text = node.getText();
 
         if (text != null) {
+            String value = text.toString().trim();
 
-            String value =
-                    text.toString().trim();
-
-            if (!value.isEmpty()
-                    && !texts.contains(value)) {
-
-                texts.add(value);
+            if (!value.isEmpty()) {
+                result.add(value);
             }
         }
 
-        CharSequence description =
-                node.getContentDescription();
+        CharSequence description = node.getContentDescription();
 
         if (description != null) {
+            String value = description.toString().trim();
 
-            String value =
-                    description.toString().trim();
-
-            if (!value.isEmpty()
-                    && !texts.contains(value)) {
-
-                texts.add(value);
+            if (!value.isEmpty()) {
+                result.add(value);
             }
         }
 
-        for (int i = 0;
-             i < node.getChildCount();
-             i++) {
+        for (int i = 0; i < node.getChildCount(); i++) {
 
-            AccessibilityNodeInfo child =
-                    node.getChild(i);
+            AccessibilityNodeInfo child = node.getChild(i);
 
             if (child != null) {
-
-                collectText(
-                        child,
-                        texts
-                );
-
+                collectNodeText(child, result);
                 child.recycle();
             }
-        }
-    }
-
-    private void speak(String text) {
-
-        if (textToSpeech == null) {
-            return;
-        }
-
-        textToSpeech.speak(
-                text,
-                TextToSpeech.QUEUE_FLUSH,
-                null,
-                "live_chat_reader"
-        );
-    }
-
-    @Override
-    public void onInterrupt() {
-
-        if (textToSpeech != null) {
-            textToSpeech.stop();
         }
     }
 
     @Override
     public void onDestroy() {
 
-        if (textToSpeech != null) {
+        handler.removeCallbacksAndMessages(null);
 
-            textToSpeech.stop();
-            textToSpeech.shutdown();
-
-            textToSpeech = null;
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
+            tts = null;
         }
 
         super.onDestroy();
     }
-    }
+}
