@@ -2,8 +2,10 @@ package com.example.bacachat;
 
 import android.app.Service;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
+import android.media.Image;
 import android.media.ImageReader;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
@@ -20,9 +22,17 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.text.Text;
+import com.google.mlkit.vision.text.TextRecognition;
+import com.google.mlkit.vision.text.TextRecognizer;
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
+
+import java.nio.ByteBuffer;
 import java.util.Locale;
 
-public class FloatingService extends Service implements TextToSpeech.OnInitListener {
+public class FloatingService extends Service
+        implements TextToSpeech.OnInitListener {
 
     private WindowManager windowManager;
 
@@ -31,6 +41,8 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
     private LinearLayout controlLayout;
 
     private TextToSpeech tts;
+
+    private TextRecognizer textRecognizer;
 
     private boolean isLocked = false;
     private boolean isHidden = false;
@@ -41,20 +53,36 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
 
     private int screenWidth;
     private int screenHeight;
+    private int screenDensity;
 
     private static final int MIN_BOX_WIDTH = 250;
     private static final int MIN_BOX_HEIGHT = 150;
 
-    // Screen capture
+    // =========================
+    // SCREEN CAPTURE
+    // =========================
+
     private MediaProjection mediaProjection;
     private ImageReader imageReader;
     private android.hardware.display.VirtualDisplay virtualDisplay;
+
     private HandlerThread captureThread;
     private Handler captureHandler;
 
     private int captureWidth;
     private int captureHeight;
-    private int captureDensity;
+
+    // =========================
+    // OCR
+    // =========================
+
+    private boolean ocrBusy = false;
+
+    private String lastSpokenText = "";
+
+    private long lastReadTime = 0;
+
+    private static final long MIN_READ_INTERVAL = 1200;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -62,21 +90,31 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
     }
 
     @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
+    public int onStartCommand(
+            Intent intent,
+            int flags,
+            int startId
+    ) {
 
         if (intent != null) {
 
-            int resultCode = intent.getIntExtra(
-                    "SCREEN_CAPTURE_RESULT_CODE",
-                    -1
-            );
+            int resultCode =
+                    intent.getIntExtra(
+                            "SCREEN_CAPTURE_RESULT_CODE",
+                            -1
+                    );
 
-            Intent captureData = intent.getParcelableExtra(
-                    "SCREEN_CAPTURE_DATA"
-            );
+            Intent captureData =
+                    intent.getParcelableExtra(
+                            "SCREEN_CAPTURE_DATA"
+                    );
 
             if (resultCode != -1 && captureData != null) {
-                startScreenCapture(resultCode, captureData);
+
+                startScreenCapture(
+                        resultCode,
+                        captureData
+                );
             }
         }
 
@@ -85,115 +123,194 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
 
     @Override
     public void onCreate() {
+
         super.onCreate();
 
-        tts = new TextToSpeech(this, this);
-
         windowManager =
-                (WindowManager) getSystemService(WINDOW_SERVICE);
+                (WindowManager)
+                        getSystemService(WINDOW_SERVICE);
 
         android.util.DisplayMetrics metrics =
                 new android.util.DisplayMetrics();
 
-        windowManager.getDefaultDisplay().getRealMetrics(metrics);
+        windowManager
+                .getDefaultDisplay()
+                .getRealMetrics(metrics);
 
-        screenWidth = metrics.widthPixels;
-        screenHeight = metrics.heightPixels;
-        captureDensity = metrics.densityDpi;
+        screenWidth =
+                metrics.widthPixels;
+
+        screenHeight =
+                metrics.heightPixels;
+
+        screenDensity =
+                metrics.densityDpi;
+
+        // =========================
+        // TTS
+        // =========================
+
+        tts =
+                new TextToSpeech(
+                        this,
+                        this
+                );
+
+        // =========================
+        // OCR
+        // =========================
+
+        textRecognizer =
+                TextRecognition
+                        .getClient(
+                                TextRecognizerOptions
+                                        .DEFAULT_OPTIONS
+                        );
+
+        // =========================
+        // OVERLAY TYPE
+        // =========================
 
         int layoutType;
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.O) {
+
             layoutType =
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+                    WindowManager.LayoutParams
+                            .TYPE_APPLICATION_OVERLAY;
+
         } else {
+
             layoutType =
-                    WindowManager.LayoutParams.TYPE_PHONE;
+                    WindowManager.LayoutParams
+                            .TYPE_PHONE;
         }
 
         // =========================
-        // KOTAK AREA LIVE CHAT
+        // AREA LIVE CHAT
         // =========================
 
-        overlayBox = new View(this);
+        overlayBox =
+                new View(this);
+
         overlayBox.setBackgroundColor(
-                Color.parseColor("#3300FF88")
+                Color.parseColor(
+                        "#3300FF88"
+                )
         );
 
-        boxParams = new WindowManager.LayoutParams(
-                650,
-                450,
-                layoutType,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                PixelFormat.TRANSLUCENT
-        );
+        boxParams =
+                new WindowManager.LayoutParams(
+                        650,
+                        450,
+                        layoutType,
+                        WindowManager.LayoutParams
+                                .FLAG_NOT_FOCUSABLE,
+                        PixelFormat.TRANSLUCENT
+                );
 
-        boxParams.gravity = Gravity.CENTER;
+        boxParams.gravity =
+                Gravity.CENTER;
 
         // =========================
-        // HANDLE RESIZE
+        // RESIZE HANDLE
         // =========================
 
-        resizeHandle = new View(this);
+        resizeHandle =
+                new View(this);
+
         resizeHandle.setBackgroundColor(
                 Color.WHITE
         );
 
-        resizeParams = new WindowManager.LayoutParams(
-                40,
-                40,
-                layoutType,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                PixelFormat.TRANSLUCENT
-        );
+        resizeParams =
+                new WindowManager.LayoutParams(
+                        40,
+                        40,
+                        layoutType,
+                        WindowManager.LayoutParams
+                                .FLAG_NOT_FOCUSABLE,
+                        PixelFormat.TRANSLUCENT
+                );
 
         // =========================
         // CONTROL
         // =========================
 
-        controlLayout = new LinearLayout(this);
+        controlLayout =
+                new LinearLayout(this);
 
         controlLayout.setOrientation(
                 LinearLayout.HORIZONTAL
         );
 
-        controlLayout.setPadding(
-                10,
-                5,
-                10,
-                5
+        Button btnRead =
+                new Button(this);
+
+        btnRead.setText(
+                "▶️ Baca"
         );
 
-        Button btnRead = new Button(this);
-        btnRead.setText("▶️ Baca");
+        Button btnLock =
+                new Button(this);
 
-        Button btnLock = new Button(this);
-        btnLock.setText("🔓 Lock");
+        btnLock.setText(
+                "🔓 Lock"
+        );
 
-        Button btnHide = new Button(this);
-        btnHide.setText("👁️ Sembunyi");
+        Button btnHide =
+                new Button(this);
 
-        Button btnClose = new Button(this);
-        btnClose.setText("❌ Tutup");
+        btnHide.setText(
+                "👁️ Sembunyi"
+        );
 
-        controlLayout.addView(btnRead);
-        controlLayout.addView(btnLock);
-        controlLayout.addView(btnHide);
-        controlLayout.addView(btnClose);
+        Button btnClose =
+                new Button(this);
 
-        WindowManager.LayoutParams controlParams =
+        btnClose.setText(
+                "❌ Tutup"
+        );
+
+        controlLayout.addView(
+                btnRead
+        );
+
+        controlLayout.addView(
+                btnLock
+        );
+
+        controlLayout.addView(
+                btnHide
+        );
+
+        controlLayout.addView(
+                btnClose
+        );
+
+        WindowManager.LayoutParams
+                controlParams =
                 new WindowManager.LayoutParams(
-                        WindowManager.LayoutParams.WRAP_CONTENT,
-                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        WindowManager.LayoutParams
+                                .WRAP_CONTENT,
+                        WindowManager.LayoutParams
+                                .WRAP_CONTENT,
                         layoutType,
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                        WindowManager.LayoutParams
+                                .FLAG_NOT_FOCUSABLE,
                         PixelFormat.TRANSLUCENT
                 );
 
         controlParams.gravity =
-                Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+                Gravity.TOP |
+                        Gravity.CENTER_HORIZONTAL;
 
         controlParams.y = 100;
+
+        // =========================
+        // TAMBAHKAN OVERLAY
+        // =========================
 
         try {
 
@@ -215,6 +332,7 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
             updateResizeHandle();
 
         } catch (Exception e) {
+
             e.printStackTrace();
         }
 
@@ -241,12 +359,17 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
                             return false;
                         }
 
-                        switch (event.getAction()) {
+                        switch (
+                                event.getAction()
+                        ) {
 
                             case MotionEvent.ACTION_DOWN:
 
-                                initialX = boxParams.x;
-                                initialY = boxParams.y;
+                                initialX =
+                                        boxParams.x;
+
+                                initialY =
+                                        boxParams.y;
 
                                 initialTouchX =
                                         event.getRawX();
@@ -260,17 +383,17 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
 
                                 boxParams.x =
                                         initialX +
-                                        (int) (
-                                                event.getRawX()
-                                                        - initialTouchX
-                                        );
+                                                (int) (
+                                                        event.getRawX()
+                                                                - initialTouchX
+                                                );
 
                                 boxParams.y =
                                         initialY +
-                                        (int) (
-                                                event.getRawY()
-                                                        - initialTouchY
-                                        );
+                                                (int) (
+                                                        event.getRawY()
+                                                                - initialTouchY
+                                                );
 
                                 updateBox();
 
@@ -305,7 +428,9 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
                             return false;
                         }
 
-                        switch (event.getAction()) {
+                        switch (
+                                event.getAction()
+                        ) {
 
                             case MotionEvent.ACTION_DOWN:
 
@@ -327,17 +452,17 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
 
                                 int newWidth =
                                         startWidth +
-                                        (int) (
-                                                event.getRawX()
-                                                        - startX
-                                        );
+                                                (int) (
+                                                        event.getRawX()
+                                                                - startX
+                                                );
 
                                 int newHeight =
                                         startHeight +
-                                        (int) (
-                                                event.getRawY()
-                                                        - startY
-                                        );
+                                                (int) (
+                                                        event.getRawY()
+                                                                - startY
+                                                );
 
                                 boxParams.width =
                                         Math.max(
@@ -370,9 +495,12 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
 
                     if (isReading) {
 
-                        isReading = false;
+                        isReading =
+                                false;
 
-                        btnRead.setText("▶️ Baca");
+                        btnRead.setText(
+                                "▶️ Baca"
+                        );
 
                         if (tts != null) {
                             tts.stop();
@@ -380,13 +508,30 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
 
                     } else {
 
-                        isReading = true;
+                        if (mediaProjection == null) {
 
-                        btnRead.setText("⏸️ Berhenti");
+                            Toast.makeText(
+                                    FloatingService.this,
+                                    "Screen capture belum aktif",
+                                    Toast.LENGTH_SHORT
+                            ).show();
+
+                            return;
+                        }
+
+                        isReading =
+                                true;
+
+                        lastSpokenText =
+                                "";
+
+                        btnRead.setText(
+                                "⏸️ Berhenti"
+                        );
 
                         Toast.makeText(
                                 FloatingService.this,
-                                "Capture layar siap",
+                                "Pembacaan live chat aktif",
                                 Toast.LENGTH_SHORT
                         ).show();
 
@@ -402,7 +547,8 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
         btnLock.setOnClickListener(
                 v -> {
 
-                    isLocked = !isLocked;
+                    isLocked =
+                            !isLocked;
 
                     btnLock.setText(
                             isLocked
@@ -427,7 +573,8 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
         btnHide.setOnClickListener(
                 v -> {
 
-                    isHidden = !isHidden;
+                    isHidden =
+                            !isHidden;
 
                     overlayBox.setVisibility(
                             isHidden
@@ -489,8 +636,11 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
             return;
         }
 
-        captureWidth = screenWidth;
-        captureHeight = screenHeight;
+        captureWidth =
+                screenWidth;
+
+        captureHeight =
+                screenHeight;
 
         captureThread =
                 new HandlerThread(
@@ -508,7 +658,7 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
                 ImageReader.newInstance(
                         captureWidth,
                         captureHeight,
-                        android.graphics.PixelFormat.RGBA_8888,
+                        PixelFormat.RGBA_8888,
                         2
                 );
 
@@ -517,8 +667,10 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
                         "BacaLivechat",
                         captureWidth,
                         captureHeight,
-                        captureDensity,
-                        android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                        screenDensity,
+                        android.hardware.display
+                                .DisplayManager
+                                .VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                         imageReader.getSurface(),
                         null,
                         captureHandler
@@ -527,11 +679,12 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
         imageReader.setOnImageAvailableListener(
                 reader -> {
 
-                    android.media.Image image = null;
+                    Image image = null;
 
                     try {
 
-                        image = reader.acquireLatestImage();
+                        image =
+                                reader.acquireLatestImage();
 
                         if (image == null) {
                             return;
@@ -541,188 +694,37 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
                             return;
                         }
 
-                        // =================================================
-                        // FRAME MASIH HANYA DI RAM
-                        // BELUM ADA FILE YANG DISIMPAN
-                        // =================================================
+                        if (ocrBusy) {
+                            return;
+                        }
 
-                        processFrameInMemory(image);
+                        long now =
+                                System.currentTimeMillis();
+
+                        if (now - lastReadTime <
+                                MIN_READ_INTERVAL) {
+
+                            return;
+                        }
+
+                        ocrBusy = true;
+
+                        lastReadTime =
+                                now;
+
+                        processFrameInMemory(
+                                image
+                        );
 
                     } catch (Exception e) {
 
                         e.printStackTrace();
+
+                        ocrBusy = false;
 
                     } finally {
 
                         if (image != null) {
                             image.close();
                         }
-                    }
-
-                },
-                captureHandler
-        );
-    }
-
-    // =====================================================
-    // PROSES FRAME SEMENTARA
-    // =====================================================
-
-    private void processFrameInMemory(
-            android.media.Image image
-    ) {
-
-        // Tahap ini sengaja belum melakukan OCR.
-        //
-        // Frame layar hanya diterima di RAM.
-        //
-        // Setelah OCR ditambahkan:
-        //
-        // Image -> Bitmap sementara
-        // -> crop area kotak
-        // -> OCR
-        // -> teks
-        // -> TTS
-        // -> bitmap dibuang
-        //
-        // Tidak ada penyimpanan screenshot
-        // ke storage/gallery.
-
-    }
-
-    // =====================================================
-    // TRIGGER CAPTURE
-    // =====================================================
-
-    private void captureCurrentFrame() {
-
-        if (mediaProjection == null) {
-
-            Toast.makeText(
-                    this,
-                    "Screen capture belum aktif",
-                    Toast.LENGTH_SHORT
-            ).show();
-
-            return;
-        }
-
-        Toast.makeText(
-                this,
-                "Mengambil layar sementara...",
-                Toast.LENGTH_SHORT
-        ).show();
-    }
-
-    // =====================================================
-    // UPDATE POSISI KOTAK
-    // =====================================================
-
-    private void updateBox() {
-
-        try {
-
-            windowManager.updateViewLayout(
-                    overlayBox,
-                    boxParams
-            );
-
-            updateResizeHandle();
-
-        } catch (Exception ignored) {
-        }
-    }
-
-    // =====================================================
-    // POSISI HANDLE RESIZE
-    // =====================================================
-
-    private void updateResizeHandle() {
-
-        if (resizeHandle == null) {
-            return;
-        }
-
-        resizeParams.gravity =
-                Gravity.TOP | Gravity.LEFT;
-
-        resizeParams.x =
-                boxParams.x
-                        + boxParams.width
-                        - 20;
-
-        resizeParams.y =
-                boxParams.y
-                        + boxParams.height
-                        - 20;
-
-        try {
-
-            windowManager.updateViewLayout(
-                    resizeHandle,
-                    resizeParams
-            );
-
-        } catch (Exception ignored) {
-        }
-    }
-
-    // =====================================================
-    // STOP SCREEN CAPTURE
-    // =====================================================
-
-    private void stopScreenCapture() {
-
-        if (virtualDisplay != null) {
-            virtualDisplay.release();
-            virtualDisplay = null;
-        }
-
-        if (imageReader != null) {
-            imageReader.close();
-            imageReader = null;
-        }
-
-        if (mediaProjection != null) {
-            mediaProjection.stop();
-            mediaProjection = null;
-        }
-
-        if (captureThread != null) {
-
-            captureThread.quitSafely();
-
-            captureThread = null;
-            captureHandler = null;
-        }
-    }
-
-    // =====================================================
-    // TTS
-    // =====================================================
-
-    @Override
-    public void onInit(int status) {
-
-        if (status == TextToSpeech.SUCCESS) {
-
-            tts.setLanguage(
-                    new Locale("id", "ID")
-            );
-        }
-    }
-
-    // =====================================================
-    // DESTROY
-    // =====================================================
-
-    @Override
-    public void onDestroy() {
-
-        isReading = false;
-
-        stopScreenCapture();
-
-        if (tts != null) {
-
-          
+           
