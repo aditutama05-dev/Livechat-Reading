@@ -17,7 +17,8 @@ import android.widget.Toast;
 
 import java.util.Locale;
 
-public class FloatingService extends Service implements TextToSpeech.OnInitListener {
+public class FloatingService extends Service
+        implements TextToSpeech.OnInitListener {
 
     private WindowManager windowManager;
     private View overlayBox;
@@ -25,13 +26,15 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
     private LinearLayout controlLayout;
     private TextToSpeech tts;
 
+    private WindowManager.LayoutParams boxParams;
+    private WindowManager.LayoutParams resizeParams;
+
     private boolean isLocked = false;
     private boolean isHidden = false;
+    private boolean isReading = false;
 
-    private WindowManager.LayoutParams boxParams;
-
-    private int minWidth = 250;
-    private int minHeight = 150;
+    private static final int MIN_WIDTH = 250;
+    private static final int MIN_HEIGHT = 150;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -47,23 +50,30 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
     public void onCreate() {
         super.onCreate();
 
-        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        windowManager =
+                (WindowManager) getSystemService(WINDOW_SERVICE);
+
         tts = new TextToSpeech(this, this);
 
         int layoutType;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            layoutType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+            layoutType =
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
         } else {
-            layoutType = WindowManager.LayoutParams.TYPE_PHONE;
+            layoutType =
+                    WindowManager.LayoutParams.TYPE_PHONE;
         }
 
-        // =========================
+        // ========================================
         // KOTAK AREA LIVE CHAT
-        // =========================
+        // ========================================
 
         overlayBox = new View(this);
-        overlayBox.setBackgroundColor(Color.parseColor("#3300FF88"));
+
+        overlayBox.setBackgroundColor(
+                Color.parseColor("#3300FF88")
+        );
 
         boxParams = new WindowManager.LayoutParams(
                 650,
@@ -75,36 +85,48 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
 
         boxParams.gravity = Gravity.CENTER;
 
-        // =========================
+        // ========================================
         // HANDLE RESIZE
-        // =========================
+        // ========================================
 
         resizeHandle = new View(this);
-        resizeHandle.setBackgroundColor(Color.parseColor("#FF00AA88"));
 
-        WindowManager.LayoutParams resizeParams =
-                new WindowManager.LayoutParams(
-                        60,
-                        60,
-                        layoutType,
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                        PixelFormat.TRANSLUCENT
-                );
+        resizeHandle.setBackgroundColor(
+                Color.parseColor("#FF00AA88")
+        );
+
+        resizeParams = new WindowManager.LayoutParams(
+                60,
+                60,
+                layoutType,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+        );
 
         resizeParams.gravity = Gravity.CENTER;
-        resizeParams.x = 295;
-        resizeParams.y = 195;
 
-        // =========================
-        // CONTROL
-        // =========================
+        // ========================================
+        // PANEL KONTROL
+        // ========================================
 
         controlLayout = new LinearLayout(this);
-        controlLayout.setOrientation(LinearLayout.HORIZONTAL);
-        controlLayout.setPadding(10, 5, 10, 5);
+
+        controlLayout.setOrientation(
+                LinearLayout.HORIZONTAL
+        );
+
+        controlLayout.setPadding(
+                10,
+                5,
+                10,
+                5
+        );
+
+        Button btnRead = new Button(this);
+        btnRead.setText("▶️ Baca");
 
         Button btnLock = new Button(this);
-        btnLock.setText("🔒 Lock");
+        btnLock.setText("🔓 Lock");
 
         Button btnHide = new Button(this);
         btnHide.setText("👁️ Sembunyi");
@@ -112,6 +134,7 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
         Button btnClose = new Button(this);
         btnClose.setText("❌ Tutup");
 
+        controlLayout.addView(btnRead);
         controlLayout.addView(btnLock);
         controlLayout.addView(btnHide);
         controlLayout.addView(btnClose);
@@ -125,144 +148,224 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
                         PixelFormat.TRANSLUCENT
                 );
 
-        controlParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        controlParams.gravity =
+                Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+
         controlParams.y = 120;
 
+        // ========================================
+        // TAMPILKAN OVERLAY
+        // ========================================
+
         try {
-            windowManager.addView(overlayBox, boxParams);
-            windowManager.addView(resizeHandle, resizeParams);
-            windowManager.addView(controlLayout, controlParams);
+
+            windowManager.addView(
+                    overlayBox,
+                    boxParams
+            );
+
+            windowManager.addView(
+                    resizeHandle,
+                    resizeParams
+            );
+
+            windowManager.addView(
+                    controlLayout,
+                    controlParams
+            );
+
         } catch (Exception e) {
+
             e.printStackTrace();
+
+            Toast.makeText(
+                    this,
+                    "Gagal menampilkan overlay",
+                    Toast.LENGTH_SHORT
+            ).show();
         }
 
-        // =========================
+        // ========================================
         // GESER KOTAK
-        // =========================
+        // ========================================
 
-        overlayBox.setOnTouchListener(new View.OnTouchListener() {
+        overlayBox.setOnTouchListener(
+                new View.OnTouchListener() {
 
-            private int initialX;
-            private int initialY;
-            private float initialTouchX;
-            private float initialTouchY;
+                    private int initialX;
+                    private int initialY;
 
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
+                    private float initialTouchX;
+                    private float initialTouchY;
 
-                if (isLocked) {
-                    return false;
-                }
+                    @Override
+                    public boolean onTouch(
+                            View v,
+                            MotionEvent event
+                    ) {
 
-                switch (event.getAction()) {
-
-                    case MotionEvent.ACTION_DOWN:
-
-                        initialX = boxParams.x;
-                        initialY = boxParams.y;
-
-                        initialTouchX = event.getRawX();
-                        initialTouchY = event.getRawY();
-
-                        return true;
-
-                    case MotionEvent.ACTION_MOVE:
-
-                        boxParams.x =
-                                initialX +
-                                (int) (event.getRawX() - initialTouchX);
-
-                        boxParams.y =
-                                initialY +
-                                (int) (event.getRawY() - initialTouchY);
-
-                        updateResizeHandlePosition();
-
-                        try {
-                            windowManager.updateViewLayout(
-                                    overlayBox,
-                                    boxParams
-                            );
-                        } catch (Exception ignored) {
+                        if (isLocked) {
+                            return false;
                         }
 
-                        return true;
+                        switch (event.getAction()) {
+
+                            case MotionEvent.ACTION_DOWN:
+
+                                initialX =
+                                        boxParams.x;
+
+                                initialY =
+                                        boxParams.y;
+
+                                initialTouchX =
+                                        event.getRawX();
+
+                                initialTouchY =
+                                        event.getRawY();
+
+                                return true;
+
+                            case MotionEvent.ACTION_MOVE:
+
+                                boxParams.x =
+                                        initialX +
+                                        (int) (
+                                                event.getRawX()
+                                                        - initialTouchX
+                                        );
+
+                                boxParams.y =
+                                        initialY +
+                                        (int) (
+                                                event.getRawY()
+                                                        - initialTouchY
+                                        );
+
+                                updateOverlayPosition();
+
+                                return true;
+                        }
+
+                        return false;
+                    }
+                }
+        );
+
+        // ========================================
+        // RESIZE
+        // ========================================
+
+        resizeHandle.setOnTouchListener(
+                new View.OnTouchListener() {
+
+                    private int initialWidth;
+                    private int initialHeight;
+
+                    private float initialTouchX;
+                    private float initialTouchY;
+
+                    @Override
+                    public boolean onTouch(
+                            View v,
+                            MotionEvent event
+                    ) {
+
+                        if (isLocked) {
+                            return false;
+                        }
+
+                        switch (event.getAction()) {
+
+                            case MotionEvent.ACTION_DOWN:
+
+                                initialWidth =
+                                        boxParams.width;
+
+                                initialHeight =
+                                        boxParams.height;
+
+                                initialTouchX =
+                                        event.getRawX();
+
+                                initialTouchY =
+                                        event.getRawY();
+
+                                return true;
+
+                            case MotionEvent.ACTION_MOVE:
+
+                                int newWidth =
+                                        initialWidth +
+                                        (int) (
+                                                event.getRawX()
+                                                        - initialTouchX
+                                        );
+
+                                int newHeight =
+                                        initialHeight +
+                                        (int) (
+                                                event.getRawY()
+                                                        - initialTouchY
+                                        );
+
+                                if (newWidth >= MIN_WIDTH) {
+                                    boxParams.width =
+                                            newWidth;
+                                }
+
+                                if (newHeight >= MIN_HEIGHT) {
+                                    boxParams.height =
+                                            newHeight;
+                                }
+
+                                updateOverlayPosition();
+
+                                return true;
+                        }
+
+                        return false;
+                    }
+                }
+        );
+
+        // ========================================
+        // BACA / PAUSE
+        // ========================================
+
+        btnRead.setOnClickListener(v -> {
+
+            isReading = !isReading;
+
+            if (isReading) {
+
+                btnRead.setText("⏸️ Pause");
+
+                Toast.makeText(
+                        FloatingService.this,
+                        "Pembacaan aktif",
+                        Toast.LENGTH_SHORT
+                ).show();
+
+            } else {
+
+                btnRead.setText("▶️ Baca");
+
+                if (tts != null) {
+                    tts.stop();
                 }
 
-                return false;
+                Toast.makeText(
+                        FloatingService.this,
+                        "Pembacaan dijeda",
+                        Toast.LENGTH_SHORT
+                ).show();
             }
         });
 
-        // =========================
-        // RESIZE KOTAK
-        // =========================
-
-        resizeHandle.setOnTouchListener(new View.OnTouchListener() {
-
-            private int initialWidth;
-            private int initialHeight;
-
-            private float initialTouchX;
-            private float initialTouchY;
-
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-
-                if (isLocked) {
-                    return false;
-                }
-
-                switch (event.getAction()) {
-
-                    case MotionEvent.ACTION_DOWN:
-
-                        initialWidth = boxParams.width;
-                        initialHeight = boxParams.height;
-
-                        initialTouchX = event.getRawX();
-                        initialTouchY = event.getRawY();
-
-                        return true;
-
-                    case MotionEvent.ACTION_MOVE:
-
-                        int newWidth =
-                                initialWidth +
-                                (int) (event.getRawX() - initialTouchX);
-
-                        int newHeight =
-                                initialHeight +
-                                (int) (event.getRawY() - initialTouchY);
-
-                        if (newWidth >= minWidth) {
-                            boxParams.width = newWidth;
-                        }
-
-                        if (newHeight >= minHeight) {
-                            boxParams.height = newHeight;
-                        }
-
-                        try {
-                            windowManager.updateViewLayout(
-                                    overlayBox,
-                                    boxParams
-                            );
-
-                            updateResizeHandlePosition();
-
-                        } catch (Exception ignored) {
-                        }
-
-                        return true;
-                }
-
-                return false;
-            }
-        });
-
-        // =========================
+        // ========================================
         // LOCK
-        // =========================
+        // ========================================
 
         btnLock.setOnClickListener(v -> {
 
@@ -272,11 +375,13 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
 
                 btnLock.setText("🔒 Terkunci");
 
-                resizeHandle.setVisibility(View.GONE);
+                resizeHandle.setVisibility(
+                        View.GONE
+                );
 
                 Toast.makeText(
                         FloatingService.this,
-                        "Kotak area dikunci",
+                        "Area live chat dikunci",
                         Toast.LENGTH_SHORT
                 ).show();
 
@@ -284,19 +389,23 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
 
                 btnLock.setText("🔓 Lock");
 
-                resizeHandle.setVisibility(View.VISIBLE);
+                if (!isHidden) {
+                    resizeHandle.setVisibility(
+                            View.VISIBLE
+                    );
+                }
 
                 Toast.makeText(
                         FloatingService.this,
-                        "Kotak bisa digeser dan diubah ukurannya",
+                        "Area bisa digeser dan diubah ukurannya",
                         Toast.LENGTH_SHORT
                 ).show();
             }
         });
 
-        // =========================
-        // HIDE / SHOW
-        // =========================
+        // ========================================
+        // SEMBUNYIKAN / TAMPILKAN
+        // ========================================
 
         btnHide.setOnClickListener(v -> {
 
@@ -304,74 +413,100 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
 
             if (isHidden) {
 
-                overlayBox.setVisibility(View.GONE);
-                resizeHandle.setVisibility(View.GONE);
+                overlayBox.setVisibility(
+                        View.GONE
+                );
+
+                resizeHandle.setVisibility(
+                        View.GONE
+                );
 
                 btnHide.setText("👁️ Tampil");
 
             } else {
 
-                overlayBox.setVisibility(View.VISIBLE);
+                overlayBox.setVisibility(
+                        View.VISIBLE
+                );
 
                 if (!isLocked) {
-                    resizeHandle.setVisibility(View.VISIBLE);
+                    resizeHandle.setVisibility(
+                            View.VISIBLE
+                    );
                 }
 
-                btnHide.setText("👁️ Sembunyi");
+                btnHide.setText(
+                        "👁️ Sembunyi"
+                );
             }
         });
 
-        // =========================
-        // CLOSE
-        // =========================
+        // ========================================
+        // TUTUP
+        // ========================================
 
-        btnClose.setOnClickListener(v -> stopSelf());
+        btnClose.setOnClickListener(v -> {
+            stopSelf();
+        });
 
-        updateResizeHandlePosition();
+        updateOverlayPosition();
     }
 
-    private void updateResizeHandlePosition() {
+    // ============================================
+    // POSISI HANDLE RESIZE
+    // ============================================
 
-        if (boxParams == null || resizeHandle == null) {
+    private void updateOverlayPosition() {
+
+        if (boxParams == null ||
+                resizeParams == null) {
             return;
         }
 
-        int handleX =
+        resizeParams.x =
                 boxParams.x +
-                boxParams.width -
+                (boxParams.width / 2) -
                 30;
 
-        int handleY =
+        resizeParams.y =
                 boxParams.y +
-                boxParams.height -
+                (boxParams.height / 2) -
                 30;
 
-        WindowManager.LayoutParams params =
-                (WindowManager.LayoutParams)
-                        resizeHandle.getLayoutParams();
+        try {
 
-        if (params != null) {
+            windowManager.updateViewLayout(
+                    overlayBox,
+                    boxParams
+            );
 
-            params.x = handleX;
-            params.y = handleY;
+            windowManager.updateViewLayout(
+                    resizeHandle,
+                    resizeParams
+            );
 
-            try {
-                windowManager.updateViewLayout(
-                        resizeHandle,
-                        params
-                );
-            } catch (Exception ignored) {
-            }
+        } catch (Exception ignored) {
         }
     }
+
+    // ============================================
+    // TEXT TO SPEECH
+    // ============================================
 
     @Override
     public void onInit(int status) {
 
         if (status == TextToSpeech.SUCCESS) {
-            tts.setLanguage(new Locale("id", "ID"));
+
+            tts.setLanguage(
+                    new Locale("id", "ID")
+            );
         }
     }
+
+    // ============================================
+    // HANCURKAN SERVICE
+    // ============================================
 
     @Override
     public void onDestroy() {
@@ -379,6 +514,7 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
         super.onDestroy();
 
         if (tts != null) {
+
             tts.stop();
             tts.shutdown();
         }
@@ -386,18 +522,24 @@ public class FloatingService extends Service implements TextToSpeech.OnInitListe
         try {
 
             if (overlayBox != null) {
-                windowManager.removeView(overlayBox);
+                windowManager.removeView(
+                        overlayBox
+                );
             }
 
             if (resizeHandle != null) {
-                windowManager.removeView(resizeHandle);
+                windowManager.removeView(
+                        resizeHandle
+                );
             }
 
             if (controlLayout != null) {
-                windowManager.removeView(controlLayout);
+                windowManager.removeView(
+                        controlLayout
+                );
             }
 
         } catch (Exception ignored) {
         }
     }
-                    }
+                                    }
