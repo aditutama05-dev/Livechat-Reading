@@ -4,683 +4,400 @@ import android.app.Service;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
-import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.IBinder;
+import android.speech.tts.TextToSpeech;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.FrameLayout;
+import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.widget.Toast;
 
-public class FloatingService extends Service {
+import java.util.Locale;
+
+public class FloatingService extends Service implements TextToSpeech.OnInitListener {
 
     private WindowManager windowManager;
-
-    private LinearLayout floatingContainer;
-    private TextView mainButton;
-    private TextView arrowButton;
-    private LinearLayout controlPanel;
-
-    private FrameLayout regionContainer;
-    private View regionBox;
+    private View overlayBox;
     private View resizeHandle;
+    private LinearLayout controlLayout;
+    private TextToSpeech tts;
 
-    private WindowManager.LayoutParams floatingParams;
-    private WindowManager.LayoutParams regionParams;
+    private boolean isLocked = false;
+    private boolean isHidden = false;
 
-    private boolean floatingLocked = false;
-    private boolean regionLocked = false;
-    private boolean controlsVisible = false;
+    private WindowManager.LayoutParams boxParams;
 
-    private int initialX;
-    private int initialY;
-    private float initialTouchX;
-    private float initialTouchY;
+    private int minWidth = 250;
+    private int minHeight = 150;
 
-    private int initialRegionX;
-    private int initialRegionY;
-    private float initialRegionTouchX;
-    private float initialRegionTouchY;
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
 
-    private int initialRegionWidth;
-    private int initialRegionHeight;
-    private float initialResizeTouchX;
-    private float initialResizeTouchY;
-
-    private final int MIN_REGION_WIDTH_DP = 120;
-    private final int MIN_REGION_HEIGHT_DP = 80;
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        return START_STICKY;
+    }
 
     @Override
     public void onCreate() {
         super.onCreate();
 
-        windowManager =
-                (WindowManager) getSystemService(WINDOW_SERVICE);
+        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        tts = new TextToSpeech(this, this);
 
-        createRegionBox();
-        createFloatingButton();
-    }
-
-    private int getOverlayType() {
+        int layoutType;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            return WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
-        }
-
-        return WindowManager.LayoutParams.TYPE_PHONE;
-    }
-
-    private int dpToPx(int dp) {
-
-        float density =
-                getResources()
-                        .getDisplayMetrics()
-                        .density;
-
-        return (int) (dp * density);
-    }
-
-    private GradientDrawable createBackground(
-            int color,
-            float radius
-    ) {
-
-        GradientDrawable drawable =
-                new GradientDrawable();
-
-        drawable.setColor(color);
-        drawable.setCornerRadius(radius);
-
-        return drawable;
-    }
-
-    private void createRegionBox() {
-
-        regionContainer =
-                new FrameLayout(this);
-
-        regionBox =
-                new View(this);
-
-        GradientDrawable border =
-                new GradientDrawable();
-
-        border.setColor(
-                Color.argb(35, 255, 255, 255)
-        );
-
-        border.setStroke(
-                dpToPx(3),
-                Color.WHITE
-        );
-
-        regionBox.setBackground(border);
-
-        regionContainer.addView(
-                regionBox,
-                new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT
-                )
-        );
-
-        resizeHandle =
-                new View(this);
-
-        GradientDrawable handleBackground =
-                createBackground(
-                        Color.WHITE,
-                        dpToPx(20)
-                );
-
-        resizeHandle.setBackground(
-                handleBackground
-        );
-
-        FrameLayout.LayoutParams handleParams =
-                new FrameLayout.LayoutParams(
-                        dpToPx(30),
-                        dpToPx(30)
-                );
-
-        handleParams.gravity =
-                Gravity.BOTTOM | Gravity.END;
-
-        handleParams.setMargins(
-                0,
-                0,
-                dpToPx(5),
-                dpToPx(5)
-        );
-
-        regionContainer.addView(
-                resizeHandle,
-                handleParams
-        );
-
-        regionParams =
-                new WindowManager.LayoutParams(
-                        dpToPx(300),
-                        dpToPx(180),
-                        getOverlayType(),
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                        PixelFormat.TRANSLUCENT
-                );
-
-        regionParams.gravity =
-                Gravity.TOP | Gravity.START;
-
-        regionParams.x =
-                dpToPx(40);
-
-        regionParams.y =
-                dpToPx(300);
-
-        windowManager.addView(
-                regionContainer,
-                regionParams
-        );
-
-        regionBox.setOnTouchListener(
-                this::handleRegionMove
-        );
-
-        resizeHandle.setOnTouchListener(
-                this::handleRegionResize
-        );
-    }
-
-    private boolean handleRegionMove(
-            View view,
-            MotionEvent event
-    ) {
-
-        if (regionLocked) {
-            return true;
-        }
-
-        switch (event.getAction()) {
-
-            case MotionEvent.ACTION_DOWN:
-
-                initialRegionX =
-                        regionParams.x;
-
-                initialRegionY =
-                        regionParams.y;
-
-                initialRegionTouchX =
-                        event.getRawX();
-
-                initialRegionTouchY =
-                        event.getRawY();
-
-                return true;
-
-            case MotionEvent.ACTION_MOVE:
-
-                regionParams.x =
-                        initialRegionX +
-                        (int) (
-                                event.getRawX()
-                                        - initialRegionTouchX
-                        );
-
-                regionParams.y =
-                        initialRegionY +
-                        (int) (
-                                event.getRawY()
-                                        - initialRegionTouchY
-                        );
-
-                windowManager.updateViewLayout(
-                        regionContainer,
-                        regionParams
-                );
-
-                return true;
-
-            case MotionEvent.ACTION_UP:
-
-                return true;
-        }
-
-        return false;
-    }
-
-    private boolean handleRegionResize(
-            View view,
-            MotionEvent event
-    ) {
-
-        if (regionLocked) {
-            return true;
-        }
-
-        switch (event.getAction()) {
-
-            case MotionEvent.ACTION_DOWN:
-
-                initialRegionWidth =
-                        regionParams.width;
-
-                initialRegionHeight =
-                        regionParams.height;
-
-                initialResizeTouchX =
-                        event.getRawX();
-
-                initialResizeTouchY =
-                        event.getRawY();
-
-                return true;
-
-            case MotionEvent.ACTION_MOVE:
-
-                int newWidth =
-                        initialRegionWidth +
-                        (int) (
-                                event.getRawX()
-                                        - initialResizeTouchX
-                        );
-
-                int newHeight =
-                        initialRegionHeight +
-                        (int) (
-                                event.getRawY()
-                                        - initialResizeTouchY
-                        );
-
-                newWidth =
-                        Math.max(
-                                newWidth,
-                                dpToPx(
-                                        MIN_REGION_WIDTH_DP
-                                )
-                        );
-
-                newHeight =
-                        Math.max(
-                                newHeight,
-                                dpToPx(
-                                        MIN_REGION_HEIGHT_DP
-                                )
-                        );
-
-                regionParams.width =
-                        newWidth;
-
-                regionParams.height =
-                        newHeight;
-
-                windowManager.updateViewLayout(
-                        regionContainer,
-                        regionParams
-                );
-
-                return true;
-
-            case MotionEvent.ACTION_UP:
-
-                return true;
-        }
-
-        return false;
-    }
-
-    private void createFloatingButton() {
-
-        floatingContainer =
-                new LinearLayout(this);
-
-        floatingContainer.setOrientation(
-                LinearLayout.VERTICAL
-        );
-
-        floatingContainer.setGravity(
-                Gravity.CENTER_HORIZONTAL
-        );
-
-        mainButton =
-                new TextView(this);
-
-        mainButton.setText("●");
-        mainButton.setTextColor(Color.WHITE);
-        mainButton.setTextSize(28);
-        mainButton.setGravity(Gravity.CENTER);
-
-        mainButton.setBackground(
-                createBackground(
-                        Color.rgb(40, 40, 40),
-                        100
-                )
-        );
-
-        arrowButton =
-                new TextView(this);
-
-        arrowButton.setText("▼");
-        arrowButton.setTextColor(Color.WHITE);
-        arrowButton.setTextSize(18);
-        arrowButton.setGravity(Gravity.CENTER);
-
-        arrowButton.setBackground(
-                createBackground(
-                        Color.rgb(55, 55, 55),
-                        30
-                )
-        );
-
-        int buttonSize =
-                dpToPx(72);
-
-        LinearLayout.LayoutParams mainParams =
-                new LinearLayout.LayoutParams(
-                        buttonSize,
-                        buttonSize
-                );
-
-        LinearLayout.LayoutParams arrowParams =
-                new LinearLayout.LayoutParams(
-                        dpToPx(72),
-                        dpToPx(38)
-                );
-
-        arrowParams.topMargin =
-                dpToPx(-2);
-
-        floatingContainer.addView(
-                mainButton,
-                mainParams
-        );
-
-        floatingContainer.addView(
-                arrowButton,
-                arrowParams
-        );
-
-        floatingParams =
-                new WindowManager.LayoutParams(
-                        dpToPx(90),
-                        dpToPx(115),
-                        getOverlayType(),
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                        PixelFormat.TRANSLUCENT
-                );
-
-        floatingParams.gravity =
-                Gravity.TOP | Gravity.START;
-
-        floatingParams.x =
-                dpToPx(20);
-
-        floatingParams.y =
-                dpToPx(150);
-
-        windowManager.addView(
-                floatingContainer,
-                floatingParams
-        );
-
-        mainButton.setOnTouchListener(
-                this::handleFloatingTouch
-        );
-
-        arrowButton.setOnClickListener(
-                v -> toggleControls()
-        );
-    }
-
-    private boolean handleFloatingTouch(
-            View view,
-            MotionEvent event
-    ) {
-
-        if (floatingLocked) {
-            return true;
-        }
-
-        switch (event.getAction()) {
-
-            case MotionEvent.ACTION_DOWN:
-
-                initialX =
-                        floatingParams.x;
-
-                initialY =
-                        floatingParams.y;
-
-                initialTouchX =
-                        event.getRawX();
-
-                initialTouchY =
-                        event.getRawY();
-
-                return true;
-
-            case MotionEvent.ACTION_MOVE:
-
-                floatingParams.x =
-                        initialX +
-                        (int) (
-                                event.getRawX()
-                                        - initialTouchX
-                        );
-
-                floatingParams.y =
-                        initialY +
-                        (int) (
-                                event.getRawY()
-                                        - initialTouchY
-                        );
-
-                windowManager.updateViewLayout(
-                        floatingContainer,
-                        floatingParams
-                );
-
-                return true;
-
-            case MotionEvent.ACTION_UP:
-
-                return true;
-        }
-
-        return false;
-    }
-
-    private void toggleControls() {
-
-        controlsVisible =
-                !controlsVisible;
-
-        if (controlsVisible) {
-            showControlPanel();
+            layoutType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
         } else {
-            hideControlPanel();
+            layoutType = WindowManager.LayoutParams.TYPE_PHONE;
         }
+
+        // =========================
+        // KOTAK AREA LIVE CHAT
+        // =========================
+
+        overlayBox = new View(this);
+        overlayBox.setBackgroundColor(Color.parseColor("#3300FF88"));
+
+        boxParams = new WindowManager.LayoutParams(
+                650,
+                450,
+                layoutType,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+        );
+
+        boxParams.gravity = Gravity.CENTER;
+
+        // =========================
+        // HANDLE RESIZE
+        // =========================
+
+        resizeHandle = new View(this);
+        resizeHandle.setBackgroundColor(Color.parseColor("#FF00AA88"));
+
+        WindowManager.LayoutParams resizeParams =
+                new WindowManager.LayoutParams(
+                        60,
+                        60,
+                        layoutType,
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                        PixelFormat.TRANSLUCENT
+                );
+
+        resizeParams.gravity = Gravity.CENTER;
+        resizeParams.x = 295;
+        resizeParams.y = 195;
+
+        // =========================
+        // CONTROL
+        // =========================
+
+        controlLayout = new LinearLayout(this);
+        controlLayout.setOrientation(LinearLayout.HORIZONTAL);
+        controlLayout.setPadding(10, 5, 10, 5);
+
+        Button btnLock = new Button(this);
+        btnLock.setText("🔒 Lock");
+
+        Button btnHide = new Button(this);
+        btnHide.setText("👁️ Sembunyi");
+
+        Button btnClose = new Button(this);
+        btnClose.setText("❌ Tutup");
+
+        controlLayout.addView(btnLock);
+        controlLayout.addView(btnHide);
+        controlLayout.addView(btnClose);
+
+        WindowManager.LayoutParams controlParams =
+                new WindowManager.LayoutParams(
+                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        layoutType,
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                        PixelFormat.TRANSLUCENT
+                );
+
+        controlParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        controlParams.y = 120;
+
+        try {
+            windowManager.addView(overlayBox, boxParams);
+            windowManager.addView(resizeHandle, resizeParams);
+            windowManager.addView(controlLayout, controlParams);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // =========================
+        // GESER KOTAK
+        // =========================
+
+        overlayBox.setOnTouchListener(new View.OnTouchListener() {
+
+            private int initialX;
+            private int initialY;
+            private float initialTouchX;
+            private float initialTouchY;
+
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+
+                if (isLocked) {
+                    return false;
+                }
+
+                switch (event.getAction()) {
+
+                    case MotionEvent.ACTION_DOWN:
+
+                        initialX = boxParams.x;
+                        initialY = boxParams.y;
+
+                        initialTouchX = event.getRawX();
+                        initialTouchY = event.getRawY();
+
+                        return true;
+
+                    case MotionEvent.ACTION_MOVE:
+
+                        boxParams.x =
+                                initialX +
+                                (int) (event.getRawX() - initialTouchX);
+
+                        boxParams.y =
+                                initialY +
+                                (int) (event.getRawY() - initialTouchY);
+
+                        updateResizeHandlePosition();
+
+                        try {
+                            windowManager.updateViewLayout(
+                                    overlayBox,
+                                    boxParams
+                            );
+                        } catch (Exception ignored) {
+                        }
+
+                        return true;
+                }
+
+                return false;
+            }
+        });
+
+        // =========================
+        // RESIZE KOTAK
+        // =========================
+
+        resizeHandle.setOnTouchListener(new View.OnTouchListener() {
+
+            private int initialWidth;
+            private int initialHeight;
+
+            private float initialTouchX;
+            private float initialTouchY;
+
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+
+                if (isLocked) {
+                    return false;
+                }
+
+                switch (event.getAction()) {
+
+                    case MotionEvent.ACTION_DOWN:
+
+                        initialWidth = boxParams.width;
+                        initialHeight = boxParams.height;
+
+                        initialTouchX = event.getRawX();
+                        initialTouchY = event.getRawY();
+
+                        return true;
+
+                    case MotionEvent.ACTION_MOVE:
+
+                        int newWidth =
+                                initialWidth +
+                                (int) (event.getRawX() - initialTouchX);
+
+                        int newHeight =
+                                initialHeight +
+                                (int) (event.getRawY() - initialTouchY);
+
+                        if (newWidth >= minWidth) {
+                            boxParams.width = newWidth;
+                        }
+
+                        if (newHeight >= minHeight) {
+                            boxParams.height = newHeight;
+                        }
+
+                        try {
+                            windowManager.updateViewLayout(
+                                    overlayBox,
+                                    boxParams
+                            );
+
+                            updateResizeHandlePosition();
+
+                        } catch (Exception ignored) {
+                        }
+
+                        return true;
+                }
+
+                return false;
+            }
+        });
+
+        // =========================
+        // LOCK
+        // =========================
+
+        btnLock.setOnClickListener(v -> {
+
+            isLocked = !isLocked;
+
+            if (isLocked) {
+
+                btnLock.setText("🔒 Terkunci");
+
+                resizeHandle.setVisibility(View.GONE);
+
+                Toast.makeText(
+                        FloatingService.this,
+                        "Kotak area dikunci",
+                        Toast.LENGTH_SHORT
+                ).show();
+
+            } else {
+
+                btnLock.setText("🔓 Lock");
+
+                resizeHandle.setVisibility(View.VISIBLE);
+
+                Toast.makeText(
+                        FloatingService.this,
+                        "Kotak bisa digeser dan diubah ukurannya",
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+        });
+
+        // =========================
+        // HIDE / SHOW
+        // =========================
+
+        btnHide.setOnClickListener(v -> {
+
+            isHidden = !isHidden;
+
+            if (isHidden) {
+
+                overlayBox.setVisibility(View.GONE);
+                resizeHandle.setVisibility(View.GONE);
+
+                btnHide.setText("👁️ Tampil");
+
+            } else {
+
+                overlayBox.setVisibility(View.VISIBLE);
+
+                if (!isLocked) {
+                    resizeHandle.setVisibility(View.VISIBLE);
+                }
+
+                btnHide.setText("👁️ Sembunyi");
+            }
+        });
+
+        // =========================
+        // CLOSE
+        // =========================
+
+        btnClose.setOnClickListener(v -> stopSelf());
+
+        updateResizeHandlePosition();
     }
 
-    private void showControlPanel() {
+    private void updateResizeHandlePosition() {
 
-        if (controlPanel != null) {
+        if (boxParams == null || resizeHandle == null) {
             return;
         }
 
-        controlPanel =
-                new LinearLayout(this);
+        int handleX =
+                boxParams.x +
+                boxParams.width -
+                30;
 
-        controlPanel.setOrientation(
-                LinearLayout.VERTICAL
-        );
+        int handleY =
+                boxParams.y +
+                boxParams.height -
+                30;
 
-        controlPanel.setGravity(
-                Gravity.CENTER
-        );
+        WindowManager.LayoutParams params =
+                (WindowManager.LayoutParams)
+                        resizeHandle.getLayoutParams();
 
-        TextView lockRegion =
-                createControlButton(
-                        regionLocked
-                                ? "Buka Area"
-                                : "Kunci Area"
+        if (params != null) {
+
+            params.x = handleX;
+            params.y = handleY;
+
+            try {
+                windowManager.updateViewLayout(
+                        resizeHandle,
+                        params
                 );
-
-        TextView lockFloating =
-                createControlButton(
-                        floatingLocked
-                                ? "Buka Tombol"
-                                : "Kunci Tombol"
-                );
-
-        TextView closeButton =
-                createControlButton(
-                        "Tutup"
-                );
-
-        controlPanel.addView(lockRegion);
-        controlPanel.addView(lockFloating);
-        controlPanel.addView(closeButton);
-
-        WindowManager.LayoutParams panelParams =
-                new WindowManager.LayoutParams(
-                        dpToPx(150),
-                        WindowManager.LayoutParams.WRAP_CONTENT,
-                        getOverlayType(),
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                        PixelFormat.TRANSLUCENT
-                );
-
-        panelParams.gravity =
-                Gravity.TOP | Gravity.START;
-
-        panelParams.x =
-                floatingParams.x;
-
-        panelParams.y =
-                floatingParams.y +
-                        dpToPx(120);
-
-        windowManager.addView(
-                controlPanel,
-                panelParams
-        );
-
-        lockRegion.setOnClickListener(v -> {
-
-            regionLocked =
-                    !regionLocked;
-
-            lockRegion.setText(
-                    regionLocked
-                            ? "Buka Area"
-                            : "Kunci Area"
-            );
-        });
-
-        lockFloating.setOnClickListener(v -> {
-
-            floatingLocked =
-                    !floatingLocked;
-
-            lockFloating.setText(
-                    floatingLocked
-                            ? "Buka Tombol"
-                            : "Kunci Tombol"
-            );
-        });
-
-        closeButton.setOnClickListener(
-                v -> stopSelf()
-        );
+            } catch (Exception ignored) {
+            }
+        }
     }
 
-    private TextView createControlButton(
-            String text
-    ) {
+    @Override
+    public void onInit(int status) {
 
-        TextView button =
-                new TextView(this);
-
-        button.setText(text);
-        button.setTextColor(Color.WHITE);
-        button.setTextSize(15);
-        button.setGravity(Gravity.CENTER);
-
-        button.setPadding(
-                dpToPx(10),
-                dpToPx(10),
-                dpToPx(10),
-                dpToPx(10)
-        );
-
-        button.setBackground(
-                createBackground(
-                        Color.rgb(50, 50, 50),
-                        15
-                )
-        );
-
-        LinearLayout.LayoutParams params =
-                new LinearLayout.LayoutParams(
-                        dpToPx(140),
-                        dpToPx(50)
-                );
-
-        params.setMargins(
-                dpToPx(3),
-                dpToPx(3),
-                dpToPx(3),
-                dpToPx(3)
-        );
-
-        button.setLayoutParams(params);
-
-        return button;
-    }
-
-    private void hideControlPanel() {
-
-        if (controlPanel != null) {
-
-            windowManager.removeView(
-                    controlPanel
-            );
-
-            controlPanel = null;
+        if (status == TextToSpeech.SUCCESS) {
+            tts.setLanguage(new Locale("id", "ID"));
         }
     }
 
     @Override
     public void onDestroy() {
 
-        hideControlPanel();
-
-        if (regionContainer != null) {
-
-            windowManager.removeView(
-                    regionContainer
-            );
-
-            regionContainer = null;
-        }
-
-        if (floatingContainer != null) {
-
-            windowManager.removeView(
-                    floatingContainer
-            );
-
-            floatingContainer = null;
-        }
-
         super.onDestroy();
-    }
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
+        }
+
+        try {
+
+            if (overlayBox != null) {
+                windowManager.removeView(overlayBox);
             }
+
+            if (resizeHandle != null) {
+                windowManager.removeView(resizeHandle);
+            }
+
+            if (controlLayout != null) {
+                windowManager.removeView(controlLayout);
+            }
+
+        } catch (Exception ignored) {
+        }
+    }
+                    }
