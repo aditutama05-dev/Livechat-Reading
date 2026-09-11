@@ -5,134 +5,39 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#121212"
-    android:fillViewport="true">
+    android:padding="20dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="24dp">
+        android:orientation="vertical">
 
         <TextView
-            android:id="@+id/tvTitle"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Live Chat Reader"
+            android:text="📖 Baca Livechat"
             android:textColor="#FFFFFF"
-            android:textSize="28sp"
+            android:textSize="24sp"
             android:textStyle="bold"
-            android:layout_marginBottom="8dp"/>
+            android:layout_marginBottom="12dp"/>
 
         <TextView
-            android:id="@+id/tvSubtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Baca teks di layar dengan suara"
-            android:textColor="#BDBDBD"
+            android:text="Atur area live chat di layar, kunci posisinya, lalu gunakan tombol baca untuk membaca teks."
+            android:textColor="#BBBBBB"
             android:textSize="16sp"
-            android:layout_marginBottom="28dp"/>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="#1E1E1E"
-            android:padding="20dp"
-            android:layout_marginBottom="16dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="PEMBACAAN OTOMATIS"
-                android:textColor="#9E9E9E"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="14dp"/>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Baca chat baru secara otomatis"
-                    android:textColor="#FFFFFF"
-                    android:textSize="17sp"/>
-
-                <androidx.appcompat.widget.SwitchCompat
-                    android:id="@+id/swAutoRead"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:contentDescription="Baca chat baru secara otomatis"/>
-            </LinearLayout>
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="#1E1E1E"
-            android:padding="20dp"
-            android:layout_marginBottom="16dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="INTERVAL PEMBACAAN"
-                android:textColor="#9E9E9E"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="10dp"/>
-
-            <TextView
-                android:id="@+id/tvInterval"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Setelah fitur otomatis aktif, interval dapat diatur."
-                android:textColor="#BDBDBD"
-                android:textSize="15sp"/>
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="#1E1E1E"
-            android:padding="20dp"
-            android:layout_marginBottom="24dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="FLOATING BUTTON"
-                android:textColor="#9E9E9E"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="10dp"/>
-
-            <TextView
-                android:id="@+id/tvFloatingInfo"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Ukuran tombol dapat diatur agar nyaman digunakan."
-                android:textColor="#BDBDBD"
-                android:textSize="15sp"/>
-        </LinearLayout>
+            android:lineSpacingExtra="4dp"
+            android:layout_marginBottom="24dp"/>
 
         <Button
             android:id="@+id/btnStartOverlay"
             android:layout_width="match_parent"
             android:layout_height="60dp"
-            android:text="AKTIFKAN LIVE CHAT READER"
+            android:text="🚀 AKTIFKAN IKON MELAYANG"
+            android:textColor="#FFFFFF"
             android:textSize="16sp"
-            android:textStyle="bold"
-            android:contentDescription="Aktifkan Live Chat Reader"/>
+            android:textStyle="bold"/>
 
     </LinearLayout>
 
