@@ -5,93 +5,66 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.SwitchCompat;
 
 public class MainActivity extends AppCompatActivity {
-
-    private SwitchCompat swAutoRead;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
 
-        swAutoRead = findViewById(R.id.swAutoRead);
+        setContentView(R.layout.activity_main);
 
         Button btnStartOverlay =
                 findViewById(R.id.btnStartOverlay);
 
-        btnStartOverlay.setOnClickListener(v -> {
+        btnStartOverlay.setOnClickListener(
+                new View.OnClickListener() {
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                    && !Settings.canDrawOverlays(this)) {
+                    @Override
+                    public void onClick(View v) {
 
-                Intent intent =
-                        new Intent(
-                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                Uri.parse(
-                                        "package:" + getPackageName()
-                                )
-                        );
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                                && !Settings.canDrawOverlays(MainActivity.this)) {
 
-                startActivity(intent);
+                            Intent intent =
+                                    new Intent(
+                                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                            Uri.parse(
+                                                    "package:" +
+                                                    getPackageName()
+                                            )
+                                    );
 
-            } else {
+                            startActivityForResult(intent, 100);
 
-                startFloatingService();
+                        } else {
 
-                openAccessibilitySettings();
-            }
-        });
+                            startFloatingService();
+                        }
+                    }
+                }
+        );
     }
 
     private void startFloatingService() {
 
-        boolean autoRead =
-                swAutoRead.isChecked();
-
         Intent serviceIntent =
                 new Intent(
-                        this,
+                        MainActivity.this,
                         FloatingService.class
                 );
-
-        serviceIntent.putExtra(
-                "IS_AUTO_READ",
-                autoRead
-        );
 
         startService(serviceIntent);
 
         Toast.makeText(
                 this,
-                "Live Chat Reader aktif",
+                "Ikon melayang aktif!",
                 Toast.LENGTH_SHORT
         ).show();
     }
-
-    private void openAccessibilitySettings() {
-
-        try {
-
-            Intent intent =
-                    new Intent(
-                            Settings.ACTION_ACCESSIBILITY_SETTINGS
-                    );
-
-            startActivity(intent);
-
-        } catch (Exception e) {
-
-            Toast.makeText(
-                    this,
-                    "Pengaturan Accessibility tidak dapat dibuka",
-                    Toast.LENGTH_LONG
-            ).show();
-        }
-    }
-            }
+}
