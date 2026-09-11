@@ -22,6 +22,4 @@ android {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
-
-    implementation 'com.google.mlkit:text-recognition:16.0.1'
 }
