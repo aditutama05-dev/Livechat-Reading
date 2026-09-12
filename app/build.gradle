@@ -8,7 +8,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.bacachat"
-        minSdk 21
+        minSdk 23
         targetSdk 33
         versionCode 1
         versionName "1.0"
@@ -22,4 +22,12 @@ android {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
+
+    implementation 'com.google.mlkit:text-recognition:16.0.1'
+    implementation 'com.google.mlkit:text-recognition-chinese:16.0.1'
+    implementation 'com.google.mlkit:text-recognition-devanagari:16.0.1'
+    implementation 'com.google.mlkit:text-recognition-japanese:16.0.1'
+    implementation 'com.google.mlkit:text-recognition-korean:16.0.1'
+
+    implementation 'com.google.mlkit:language-id:17.0.6'
 }
