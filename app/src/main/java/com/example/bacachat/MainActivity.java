@@ -13,20 +13,19 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_OVERLAY = 100;
 
-    private Button btnStart;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        btnStart = findViewById(R.id.btnStart);
+        Button btnStart = findViewById(R.id.btnStart);
 
         btnStart.setOnClickListener(v -> startReader());
     }
 
     private void startReader() {
         if (!Settings.canDrawOverlays(this)) {
+
             Toast.makeText(
                     this,
                     "Izinkan aplikasi tampil di atas aplikasi lain terlebih dahulu.",
@@ -39,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
             );
 
             startActivityForResult(intent, REQUEST_OVERLAY);
+
             return;
         }
 
@@ -46,7 +46,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startFloatingService() {
-        Intent serviceIntent = new Intent(this, FloatingService.class);
+        Intent serviceIntent =
+                new Intent(this, FloatingService.class);
 
         startService(serviceIntent);
 
@@ -55,14 +56,5 @@ public class MainActivity extends AppCompatActivity {
                 "Pembaca live chat aktif.",
                 Toast.LENGTH_SHORT
         ).show();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-
-        if (Settings.canDrawOverlays(this)) {
-            btnStart.setText("▶ Mulai Pembaca Live Chat");
-        }
     }
 }
