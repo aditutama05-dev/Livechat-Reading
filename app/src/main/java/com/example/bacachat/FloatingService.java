@@ -4,6 +4,8 @@ import android.app.Service;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
+import android.media.projection.MediaProjection;
+import android.media.projection.MediaProjectionManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.speech.tts.TextToSpeech;
@@ -12,7 +14,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
-import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
@@ -23,22 +24,24 @@ public class FloatingService extends Service
 
     private WindowManager windowManager;
 
-    private FrameLayout overlayBox;
+    private View overlayBox;
     private View resizeHandle;
     private LinearLayout controlLayout;
 
     private WindowManager.LayoutParams boxParams;
-    private WindowManager.LayoutParams controlParams;
     private WindowManager.LayoutParams resizeParams;
+    private WindowManager.LayoutParams controlParams;
 
     private TextToSpeech tts;
+
+    private MediaProjection mediaProjection;
 
     private boolean isLocked = false;
     private boolean isHidden = false;
     private boolean isReading = false;
 
-    private int minWidth = 250;
-    private int minHeight = 180;
+    private static final int MIN_WIDTH = 250;
+    private static final int MIN_HEIGHT = 180;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -46,29 +49,63 @@ public class FloatingService extends Service
     }
 
     @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+
+        if (intent != null) {
+
+            int resultCode = intent.getIntExtra(
+                    "SCREEN_CAPTURE_RESULT_CODE",
+                    -1
+            );
+
+            Intent data = intent.getParcelableExtra(
+                    "SCREEN_CAPTURE_DATA"
+            );
+
+            if (resultCode != -1 && data != null) {
+
+                MediaProjectionManager projectionManager =
+                        (MediaProjectionManager)
+                                getSystemService(MEDIA_PROJECTION_SERVICE);
+
+                if (projectionManager != null) {
+                    mediaProjection =
+                            projectionManager.getMediaProjection(
+                                    resultCode,
+                                    data
+                            );
+                }
+            }
+        }
+
+        return START_STICKY;
+    }
+
+    @Override
     public void onCreate() {
         super.onCreate();
 
-        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        windowManager =
+                (WindowManager) getSystemService(WINDOW_SERVICE);
+
         tts = new TextToSpeech(this, this);
 
-        createFloatingBox();
-        createControlPanel();
+        createOverlay();
     }
 
-    private int getLayoutType() {
+    private void createOverlay() {
+
+        int layoutType;
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            return WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+            layoutType =
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+        } else {
+            layoutType =
+                    WindowManager.LayoutParams.TYPE_PHONE;
         }
 
-        return WindowManager.LayoutParams.TYPE_PHONE;
-    }
-
-    private void createFloatingBox() {
-
-        int layoutType = getLayoutType();
-
-        overlayBox = new FrameLayout(this);
+        overlayBox = new View(this);
         overlayBox.setBackgroundColor(
                 Color.parseColor("#3300FF88")
         );
@@ -83,22 +120,9 @@ public class FloatingService extends Service
 
         boxParams.gravity = Gravity.CENTER;
 
-        View borderView = new View(this);
-        borderView.setBackgroundColor(
-                Color.TRANSPARENT
-        );
-
-        FrameLayout.LayoutParams borderParams =
-                new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT
-                );
-
-        overlayBox.addView(borderView, borderParams);
-
         resizeHandle = new View(this);
         resizeHandle.setBackgroundColor(
-                Color.parseColor("#FFFFFFFF")
+                Color.parseColor("#AAFFFFFF")
         );
 
         resizeParams = new WindowManager.LayoutParams(
@@ -110,32 +134,6 @@ public class FloatingService extends Service
         );
 
         resizeParams.gravity = Gravity.TOP | Gravity.LEFT;
-
-        try {
-            windowManager.addView(
-                    overlayBox,
-                    boxParams
-            );
-
-            windowManager.addView(
-                    resizeHandle,
-                    resizeParams
-            );
-
-            updateResizeHandlePosition();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        setupDrag();
-
-        setupResize();
-    }
-
-    private void createControlPanel() {
-
-        int layoutType = getLayoutType();
 
         controlLayout = new LinearLayout(this);
         controlLayout.setOrientation(
@@ -149,16 +147,16 @@ public class FloatingService extends Service
                 5
         );
 
-        final Button btnRead = new Button(this);
-        btnRead.setText("▶️ Baca");
+        Button btnRead = new Button(this);
+        btnRead.setText("▶ Baca");
 
-        final Button btnLock = new Button(this);
+        Button btnLock = new Button(this);
         btnLock.setText("🔓 Lock");
 
-        final Button btnHide = new Button(this);
-        btnHide.setText("👁️ Sembunyi");
+        Button btnHide = new Button(this);
+        btnHide.setText("👁 Sembunyi");
 
-        final Button btnClose = new Button(this);
+        Button btnClose = new Button(this);
         btnClose.setText("❌ Tutup");
 
         controlLayout.addView(btnRead);
@@ -177,124 +175,107 @@ public class FloatingService extends Service
         controlParams.gravity =
                 Gravity.TOP | Gravity.CENTER_HORIZONTAL;
 
-        controlParams.y = 100;
+        controlParams.y = 80;
 
         try {
+
+            windowManager.addView(
+                    overlayBox,
+                    boxParams
+            );
+
+            windowManager.addView(
+                    resizeHandle,
+                    resizeParams
+            );
+
             windowManager.addView(
                     controlLayout,
                     controlParams
             );
+
         } catch (Exception e) {
+
             e.printStackTrace();
+
+            Toast.makeText(
+                    this,
+                    "Gagal menampilkan pembaca.",
+                    Toast.LENGTH_LONG
+            ).show();
+
+            return;
         }
 
-        btnRead.setOnClickListener(
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
+        setupDrag();
 
-                        isReading = !isReading;
+        setupResize();
 
-                        if (isReading) {
+        btnRead.setOnClickListener(v -> {
 
-                            btnRead.setText("⏸️ Stop");
+            if (isReading) {
 
-                            speak(
-                                    "Pembacaan diaktifkan."
-                            );
+                isReading = false;
+                btnRead.setText("▶ Baca");
 
-                        } else {
+                Toast.makeText(
+                        this,
+                        "Pembacaan dihentikan.",
+                        Toast.LENGTH_SHORT
+                ).show();
 
-                            btnRead.setText("▶️ Baca");
+            } else {
 
-                            speak(
-                                    "Pembacaan dihentikan."
-                            );
-                        }
-                    }
+                isReading = true;
+                btnRead.setText("⏹ Stop");
+
+                Toast.makeText(
+                        this,
+                        "Pembacaan siap.",
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+        });
+
+        btnLock.setOnClickListener(v -> {
+
+            isLocked = !isLocked;
+
+            if (isLocked) {
+
+                btnLock.setText("🔒 Unlock");
+                resizeHandle.setVisibility(View.GONE);
+
+            } else {
+
+                btnLock.setText("🔓 Lock");
+                resizeHandle.setVisibility(View.VISIBLE);
+            }
+        });
+
+        btnHide.setOnClickListener(v -> {
+
+            isHidden = !isHidden;
+
+            if (isHidden) {
+
+                overlayBox.setVisibility(View.GONE);
+                resizeHandle.setVisibility(View.GONE);
+                btnHide.setText("👁 Tampil");
+
+            } else {
+
+                overlayBox.setVisibility(View.VISIBLE);
+
+                if (!isLocked) {
+                    resizeHandle.setVisibility(View.VISIBLE);
                 }
-        );
 
-        btnLock.setOnClickListener(
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
+                btnHide.setText("👁 Sembunyi");
+            }
+        });
 
-                        isLocked = !isLocked;
-
-                        if (isLocked) {
-
-                            btnLock.setText("🔒 Terkunci");
-
-                            Toast.makeText(
-                                    FloatingService.this,
-                                    "Kotak terkunci",
-                                    Toast.LENGTH_SHORT
-                            ).show();
-
-                        } else {
-
-                            btnLock.setText("🔓 Lock");
-
-                            Toast.makeText(
-                                    FloatingService.this,
-                                    "Kotak bisa digeser dan diubah ukurannya",
-                                    Toast.LENGTH_SHORT
-                            ).show();
-                        }
-                    }
-                }
-        );
-
-        btnHide.setOnClickListener(
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-
-                        isHidden = !isHidden;
-
-                        if (isHidden) {
-
-                            overlayBox.setVisibility(
-                                    View.GONE
-                            );
-
-                            resizeHandle.setVisibility(
-                                    View.GONE
-                            );
-
-                            btnHide.setText(
-                                    "👁️ Tampil"
-                            );
-
-                        } else {
-
-                            overlayBox.setVisibility(
-                                    View.VISIBLE
-                            );
-
-                            resizeHandle.setVisibility(
-                                    View.VISIBLE
-                            );
-
-                            btnHide.setText(
-                                    "👁️ Sembunyi"
-                            );
-
-                            updateResizeHandlePosition();
-                        }
-                    }
-                }
-        );
-
-        btnClose.setOnClickListener(
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        stopSelf();
-                    }
-                }
-        );
+        btnClose.setOnClickListener(v -> stopSelf());
     }
 
     private void setupDrag() {
@@ -337,29 +318,17 @@ public class FloatingService extends Service
 
                                 boxParams.x =
                                         initialX
-                                                + (int) (
-                                                event.getRawX()
-                                                        - initialTouchX
-                                        );
+                                                + (int)
+                                                (event.getRawX()
+                                                        - initialTouchX);
 
                                 boxParams.y =
                                         initialY
-                                                + (int) (
-                                                event.getRawY()
-                                                        - initialTouchY
-                                        );
+                                                + (int)
+                                                (event.getRawY()
+                                                        - initialTouchY);
 
-                                try {
-
-                                    windowManager.updateViewLayout(
-                                            overlayBox,
-                                            boxParams
-                                    );
-
-                                    updateResizeHandlePosition();
-
-                                } catch (Exception ignored) {
-                                }
+                                updateOverlay();
 
                                 return true;
                         }
@@ -375,11 +344,11 @@ public class FloatingService extends Service
         resizeHandle.setOnTouchListener(
                 new View.OnTouchListener() {
 
-                    private int startWidth;
-                    private int startHeight;
+                    private int initialWidth;
+                    private int initialHeight;
 
-                    private float startTouchX;
-                    private float startTouchY;
+                    private float initialTouchX;
+                    private float initialTouchY;
 
                     @Override
                     public boolean onTouch(
@@ -395,16 +364,16 @@ public class FloatingService extends Service
 
                             case MotionEvent.ACTION_DOWN:
 
-                                startWidth =
+                                initialWidth =
                                         boxParams.width;
 
-                                startHeight =
+                                initialHeight =
                                         boxParams.height;
 
-                                startTouchX =
+                                initialTouchX =
                                         event.getRawX();
 
-                                startTouchY =
+                                initialTouchY =
                                         event.getRawY();
 
                                 return true;
@@ -412,44 +381,30 @@ public class FloatingService extends Service
                             case MotionEvent.ACTION_MOVE:
 
                                 int newWidth =
-                                        startWidth
-                                                + (int) (
-                                                event.getRawX()
-                                                        - startTouchX
-                                        );
+                                        initialWidth
+                                                + (int)
+                                                (event.getRawX()
+                                                        - initialTouchX);
 
                                 int newHeight =
-                                        startHeight
-                                                + (int) (
-                                                event.getRawY()
-                                                        - startTouchY
-                                        );
-
-                                if (newWidth < minWidth) {
-                                    newWidth = minWidth;
-                                }
-
-                                if (newHeight < minHeight) {
-                                    newHeight = minHeight;
-                                }
+                                        initialHeight
+                                                + (int)
+                                                (event.getRawY()
+                                                        - initialTouchY);
 
                                 boxParams.width =
-                                        newWidth;
+                                        Math.max(
+                                                MIN_WIDTH,
+                                                newWidth
+                                        );
 
                                 boxParams.height =
-                                        newHeight;
+                                        Math.max(
+                                                MIN_HEIGHT,
+                                                newHeight
+                                        );
 
-                                try {
-
-                                    windowManager.updateViewLayout(
-                                            overlayBox,
-                                            boxParams
-                                    );
-
-                                    updateResizeHandlePosition();
-
-                                } catch (Exception ignored) {
-                                }
+                                updateOverlay();
 
                                 return true;
                         }
@@ -460,30 +415,52 @@ public class FloatingService extends Service
         );
     }
 
-    private void updateResizeHandlePosition() {
+    private void updateOverlay() {
 
-        if (resizeHandle == null
-                || resizeParams == null
-                || boxParams == null) {
-            return;
+        try {
+
+            windowManager.updateViewLayout(
+                    overlayBox,
+                    boxParams
+            );
+
+            updateResizeHandle();
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+    }
+
+    private void updateResizeHandle() {
+
+        int screenWidth =
+                getResources()
+                        .getDisplayMetrics()
+                        .widthPixels;
+
+        int screenHeight =
+                getResources()
+                        .getDisplayMetrics()
+                        .heightPixels;
+
+        int centerX =
+                screenWidth / 2 + boxParams.x;
+
+        int centerY =
+                screenHeight / 2 + boxParams.y;
 
         int left =
-                boxParams.x
-                        - (boxParams.width / 2);
+                centerX
+                        + (boxParams.width / 2)
+                        - (resizeParams.width / 2);
 
         int top =
-                boxParams.y
-                        - (boxParams.height / 2);
+                centerY
+                        + (boxParams.height / 2)
+                        - (resizeParams.height / 2);
 
-        resizeParams.gravity =
-                Gravity.TOP | Gravity.LEFT;
-
-        resizeParams.x =
-                left + boxParams.width - 45;
-
-        resizeParams.y =
-                top + boxParams.height - 45;
+        resizeParams.x = left;
+        resizeParams.y = top;
 
         try {
 
@@ -492,22 +469,9 @@ public class FloatingService extends Service
                     resizeParams
             );
 
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-    }
-
-    private void speak(String text) {
-
-        if (tts == null) {
-            return;
-        }
-
-        tts.speak(
-                text,
-                TextToSpeech.QUEUE_FLUSH,
-                null,
-                "BACA_LIVECHAT"
-        );
     }
 
     @Override
@@ -524,47 +488,43 @@ public class FloatingService extends Service
     @Override
     public void onDestroy() {
 
-        super.onDestroy();
+        isReading = false;
+
+        if (mediaProjection != null) {
+            mediaProjection.stop();
+            mediaProjection = null;
+        }
 
         if (tts != null) {
-
             tts.stop();
             tts.shutdown();
-
             tts = null;
         }
 
-        try {
+        if (windowManager != null) {
 
-            if (overlayBox != null) {
-                windowManager.removeView(
-                        overlayBox
-                );
+            try {
+                if (overlayBox != null) {
+                    windowManager.removeView(overlayBox);
+                }
+            } catch (Exception ignored) {
             }
 
-        } catch (Exception ignored) {
-        }
-
-        try {
-
-            if (resizeHandle != null) {
-                windowManager.removeView(
-                        resizeHandle
-                );
+            try {
+                if (resizeHandle != null) {
+                    windowManager.removeView(resizeHandle);
+                }
+            } catch (Exception ignored) {
             }
 
-        } catch (Exception ignored) {
-        }
-
-        try {
-
-            if (controlLayout != null) {
-                windowManager.removeView(
-                        controlLayout
-                );
+            try {
+                if (controlLayout != null) {
+                    windowManager.removeView(controlLayout);
+                }
+            } catch (Exception ignored) {
             }
-
-        } catch (Exception ignored) {
         }
+
+        super.onDestroy();
     }
                 }
