@@ -1,9 +1,7 @@
 package com.example.bacachat;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.widget.Button;
@@ -14,106 +12,57 @@ import androidx.appcompat.app.AppCompatActivity;
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_OVERLAY = 100;
-    private static final int REQUEST_SCREEN_CAPTURE = 101;
 
-    private Intent screenCaptureData;
-    private int screenCaptureResultCode;
+    private Button btnStart;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Button btnStartOverlay = findViewById(R.id.btnStartOverlay);
+        btnStart = findViewById(R.id.btnStart);
 
-        btnStartOverlay.setOnClickListener(v -> {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                    && !Settings.canDrawOverlays(MainActivity.this)) {
-
-                Intent intent = new Intent(
-                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:" + getPackageName())
-                );
-
-                startActivityForResult(intent, REQUEST_OVERLAY);
-
-            } else {
-                requestScreenCapture();
-            }
-        });
+        btnStart.setOnClickListener(v -> startReader());
     }
 
-    private void requestScreenCapture() {
-        android.media.projection.MediaProjectionManager projectionManager =
-                (android.media.projection.MediaProjectionManager)
-                        getSystemService(MEDIA_PROJECTION_SERVICE);
+    private void startReader() {
+        if (!Settings.canDrawOverlays(this)) {
+            Toast.makeText(
+                    this,
+                    "Izinkan aplikasi tampil di atas aplikasi lain terlebih dahulu.",
+                    Toast.LENGTH_LONG
+            ).show();
 
-        if (projectionManager != null) {
-            Intent captureIntent = projectionManager.createScreenCaptureIntent();
-            startActivityForResult(captureIntent, REQUEST_SCREEN_CAPTURE);
+            Intent intent = new Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName())
+            );
+
+            startActivityForResult(intent, REQUEST_OVERLAY);
+            return;
         }
-    }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode == REQUEST_OVERLAY) {
-
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M
-                    || Settings.canDrawOverlays(this)) {
-
-                requestScreenCapture();
-
-            } else {
-                Toast.makeText(
-                        this,
-                        "Izin overlay belum diberikan",
-                        Toast.LENGTH_SHORT
-                ).show();
-            }
-
-        } else if (requestCode == REQUEST_SCREEN_CAPTURE) {
-
-            if (resultCode == Activity.RESULT_OK && data != null) {
-
-                screenCaptureResultCode = resultCode;
-                screenCaptureData = data;
-
-                startFloatingService();
-
-            } else {
-
-                Toast.makeText(
-                        this,
-                        "Izin menangkap layar dibatalkan",
-                        Toast.LENGTH_SHORT
-                ).show();
-            }
-        }
+        startFloatingService();
     }
 
     private void startFloatingService() {
-
-        Intent serviceIntent =
-                new Intent(MainActivity.this, FloatingService.class);
-
-        serviceIntent.putExtra(
-                "SCREEN_CAPTURE_RESULT_CODE",
-                screenCaptureResultCode
-        );
-
-        serviceIntent.putExtra(
-                "SCREEN_CAPTURE_DATA",
-                screenCaptureData
-        );
+        Intent serviceIntent = new Intent(this, FloatingService.class);
 
         startService(serviceIntent);
 
         Toast.makeText(
                 this,
-                "Baca Livechat aktif",
+                "Pembaca live chat aktif.",
                 Toast.LENGTH_SHORT
         ).show();
     }
-                    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (Settings.canDrawOverlays(this)) {
+            btnStart.setText("▶ Mulai Pembaca Live Chat");
+        }
+    }
+}
