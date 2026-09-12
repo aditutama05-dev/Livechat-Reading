@@ -53,6 +53,8 @@ public class FloatingService extends Service
 
     private WindowManager.LayoutParams boxParams;
 
+    private LanguageSettings languageSettings;
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -60,16 +62,33 @@ public class FloatingService extends Service
         windowManager =
                 (WindowManager) getSystemService(WINDOW_SERVICE);
 
-        tts = new TextToSpeech(this, this);
+        languageSettings =
+                new LanguageSettings(this);
 
-        DisplayMetrics metrics = new DisplayMetrics();
-        windowManager.getDefaultDisplay().getRealMetrics(metrics);
+        tts =
+                new TextToSpeech(
+                        this,
+                        this
+                );
 
-        screenWidth = metrics.widthPixels;
-        screenHeight = metrics.heightPixels;
-        screenDensity = metrics.densityDpi;
+        DisplayMetrics metrics =
+                new DisplayMetrics();
+
+        windowManager
+                .getDefaultDisplay()
+                .getRealMetrics(metrics);
+
+        screenWidth =
+                metrics.widthPixels;
+
+        screenHeight =
+                metrics.heightPixels;
+
+        screenDensity =
+                metrics.densityDpi;
 
         createOverlay();
+
         createCaptureThread();
     }
 
@@ -81,25 +100,33 @@ public class FloatingService extends Service
 
         if (intent != null) {
 
-            int resultCode = intent.getIntExtra(
-                    "SCREEN_CAPTURE_RESULT_CODE",
-                    -1
-            );
+            int resultCode =
+                    intent.getIntExtra(
+                            "SCREEN_CAPTURE_RESULT_CODE",
+                            -1
+                    );
 
             Intent captureData = null;
 
             if (Build.VERSION.SDK_INT >= 33) {
-                captureData = intent.getParcelableExtra(
-                        "SCREEN_CAPTURE_DATA",
-                        Intent.class
-                );
+
+                captureData =
+                        intent.getParcelableExtra(
+                                "SCREEN_CAPTURE_DATA",
+                                Intent.class
+                        );
+
             } else {
-                captureData = intent.getParcelableExtra(
-                        "SCREEN_CAPTURE_DATA"
-                );
+
+                captureData =
+                        intent.getParcelableExtra(
+                                "SCREEN_CAPTURE_DATA"
+                        );
             }
 
-            if (resultCode != -1 && captureData != null) {
+            if (resultCode != -1
+                    && captureData != null) {
+
                 setupMediaProjection(
                         resultCode,
                         captureData
@@ -114,31 +141,43 @@ public class FloatingService extends Service
 
         int layoutType;
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.O) {
+
             layoutType =
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+                    WindowManager.LayoutParams
+                            .TYPE_APPLICATION_OVERLAY;
+
         } else {
+
             layoutType =
-                    WindowManager.LayoutParams.TYPE_PHONE;
+                    WindowManager.LayoutParams
+                            .TYPE_PHONE;
         }
 
-        overlayBox = new View(this);
+        overlayBox =
+                new View(this);
 
         overlayBox.setBackgroundColor(
                 Color.parseColor("#3300FF88")
         );
 
-        boxParams = new WindowManager.LayoutParams(
-                650,
-                450,
-                layoutType,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                PixelFormat.TRANSLUCENT
-        );
+        boxParams =
+                new WindowManager.LayoutParams(
+                        650,
+                        450,
+                        layoutType,
+                        WindowManager.LayoutParams
+                                .FLAG_NOT_FOCUSABLE,
+                        PixelFormat.TRANSLUCENT
+                );
 
-        boxParams.gravity = Gravity.CENTER;
+        boxParams.gravity =
+                Gravity.CENTER;
 
-        controlLayout = new LinearLayout(this);
+        controlLayout =
+                new LinearLayout(this);
+
         controlLayout.setOrientation(
                 LinearLayout.HORIZONTAL
         );
@@ -150,36 +189,68 @@ public class FloatingService extends Service
                 10
         );
 
-        Button btnLock = new Button(this);
-        btnLock.setText("🔒 Lock");
+        Button btnLock =
+                new Button(this);
 
-        Button btnHide = new Button(this);
-        btnHide.setText("👁️ Sembunyi");
+        btnLock.setText(
+                "🔒 Lock"
+        );
 
-        Button btnRead = new Button(this);
-        btnRead.setText("📖 Baca");
+        Button btnHide =
+                new Button(this);
 
-        Button btnClose = new Button(this);
-        btnClose.setText("❌ Tutup");
+        btnHide.setText(
+                "👁️ Sembunyi"
+        );
 
-        controlLayout.addView(btnLock);
-        controlLayout.addView(btnHide);
-        controlLayout.addView(btnRead);
-        controlLayout.addView(btnClose);
+        Button btnRead =
+                new Button(this);
+
+        btnRead.setText(
+                "📖 Baca"
+        );
+
+        Button btnClose =
+                new Button(this);
+
+        btnClose.setText(
+                "❌ Tutup"
+        );
+
+        controlLayout.addView(
+                btnLock
+        );
+
+        controlLayout.addView(
+                btnHide
+        );
+
+        controlLayout.addView(
+                btnRead
+        );
+
+        controlLayout.addView(
+                btnClose
+        );
 
         WindowManager.LayoutParams controlParams =
                 new WindowManager.LayoutParams(
-                        WindowManager.LayoutParams.WRAP_CONTENT,
-                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        WindowManager.LayoutParams
+                                .WRAP_CONTENT,
+                        WindowManager.LayoutParams
+                                .WRAP_CONTENT,
                         layoutType,
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                        WindowManager.LayoutParams
+                                .FLAG_NOT_FOCUSABLE,
                         PixelFormat.TRANSLUCENT
                 );
 
         controlParams.gravity =
-                Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+                Gravity.TOP
+                        | Gravity.CENTER_HORIZONTAL;
 
-        controlParams.y = 120;
+        controlParams.y =
+                120;
 
         try {
 
@@ -222,7 +293,9 @@ public class FloatingService extends Service
                             return false;
                         }
 
-                        switch (event.getAction()) {
+                        switch (
+                                event.getAction()
+                        ) {
 
                             case MotionEvent.ACTION_DOWN:
 
@@ -258,10 +331,11 @@ public class FloatingService extends Service
 
                                 try {
 
-                                    windowManager.updateViewLayout(
-                                            overlayBox,
-                                            boxParams
-                                    );
+                                    windowManager
+                                            .updateViewLayout(
+                                                    overlayBox,
+                                                    boxParams
+                                            );
 
                                 } catch (Exception ignored) {
                                 }
@@ -277,7 +351,8 @@ public class FloatingService extends Service
         btnLock.setOnClickListener(
                 v -> {
 
-                    isLocked = !isLocked;
+                    isLocked =
+                            !isLocked;
 
                     btnLock.setText(
                             isLocked
@@ -298,7 +373,8 @@ public class FloatingService extends Service
         btnHide.setOnClickListener(
                 v -> {
 
-                    isHidden = !isHidden;
+                    isHidden =
+                            !isHidden;
 
                     overlayBox.setVisibility(
                             isHidden
@@ -377,10 +453,11 @@ public class FloatingService extends Service
         try {
 
             mediaProjection =
-                    projectionManager.getMediaProjection(
-                            resultCode,
-                            captureData
-                    );
+                    projectionManager
+                            .getMediaProjection(
+                                    resultCode,
+                                    captureData
+                            );
 
             if (mediaProjection == null) {
                 return;
@@ -391,6 +468,7 @@ public class FloatingService extends Service
 
                         @Override
                         public void onStop() {
+
                             stopScreenCapture();
                         }
                     },
@@ -431,23 +509,27 @@ public class FloatingService extends Service
                     );
 
             virtualDisplay =
-                    mediaProjection.createVirtualDisplay(
-                            "LiveChatReader",
-                            screenWidth,
-                            screenHeight,
-                            screenDensity,
-                            0,
-                            imageReader.getSurface(),
-                            null,
+                    mediaProjection
+                            .createVirtualDisplay(
+                                    "LiveChatReader",
+                                    screenWidth,
+                                    screenHeight,
+                                    screenDensity,
+                                    0,
+                                    imageReader.getSurface(),
+                                    null,
+                                    captureHandler
+                            );
+
+            imageReader
+                    .setOnImageAvailableListener(
+                            reader ->
+                                    processLatestFrame(),
                             captureHandler
                     );
 
-            imageReader.setOnImageAvailableListener(
-                    reader -> processLatestFrame(),
-                    captureHandler
-            );
-
-            isCapturing = true;
+            isCapturing =
+                    true;
 
         } catch (Exception e) {
 
@@ -464,13 +546,16 @@ public class FloatingService extends Service
         }
 
         Image image = null;
+
         Bitmap fullBitmap = null;
+
         Bitmap croppedBitmap = null;
 
         try {
 
             image =
-                    imageReader.acquireLatestImage();
+                    imageReader
+                            .acquireLatestImage();
 
             if (image == null) {
                 return;
@@ -497,11 +582,13 @@ public class FloatingService extends Service
 
             int rowPadding =
                     rowStride
-                            - pixelStride * screenWidth;
+                            - pixelStride
+                            * screenWidth;
 
             int bitmapWidth =
                     screenWidth
-                            + rowPadding / pixelStride;
+                            + rowPadding
+                            / pixelStride;
 
             fullBitmap =
                     Bitmap.createBitmap(
@@ -543,7 +630,8 @@ public class FloatingService extends Service
                             0,
                             Math.min(
                                     cropX,
-                                    bitmapWidth - cropWidth
+                                    bitmapWidth
+                                            - cropWidth
                             )
                     );
 
@@ -552,7 +640,8 @@ public class FloatingService extends Service
                             0,
                             Math.min(
                                     cropY,
-                                    screenHeight - cropHeight
+                                    screenHeight
+                                            - cropHeight
                             )
                     );
 
@@ -566,13 +655,13 @@ public class FloatingService extends Service
                     );
 
             /*
-             * TEMPORARY FRAME ONLY.
+             * OCR akan dipasang pada tahap berikutnya.
              *
-             * Bitmap digunakan di RAM.
-             * Tidak disimpan ke penyimpanan.
+             * croppedBitmap hanya berada di RAM.
+             * Tidak disimpan ke storage.
              *
-             * Tahap berikutnya:
-             * croppedBitmap akan dikirim ke OCR.
+             * Setelah selesai diproses,
+             * bitmap langsung dibuang.
              */
 
         } catch (Exception e) {
@@ -597,36 +686,75 @@ public class FloatingService extends Service
 
     private void stopScreenCapture() {
 
-        isCapturing = false;
+        isCapturing =
+                false;
 
         if (virtualDisplay != null) {
 
             virtualDisplay.release();
-            virtualDisplay = null;
+
+            virtualDisplay =
+                    null;
         }
 
         if (imageReader != null) {
 
             imageReader.close();
-            imageReader = null;
+
+            imageReader =
+                    null;
         }
     }
 
     @Override
     public void onInit(int status) {
 
-        if (status == TextToSpeech.SUCCESS) {
+        if (status != TextToSpeech.SUCCESS) {
+            return;
+        }
 
-            Locale defaultLocale =
+        /*
+         * Default TTS mengikuti bahasa perangkat.
+         *
+         * Pengaturan manual dari aplikasi
+         * dapat digunakan jika pengguna
+         * memilih bahasa tertentu.
+         *
+         * Deteksi bahasa chat otomatis
+         * akan disambungkan setelah OCR aktif.
+         */
+
+        String selectedLanguage =
+                languageSettings
+                        .getTtsLanguage();
+
+        Locale selectedLocale =
+                Locale.forLanguageTag(
+                        selectedLanguage
+                );
+
+        int result =
+                tts.setLanguage(
+                        selectedLocale
+                );
+
+        if (result ==
+                TextToSpeech.LANG_MISSING_DATA
+                || result ==
+                TextToSpeech.LANG_NOT_SUPPORTED) {
+
+            Locale deviceLocale =
                     Locale.getDefault();
 
-            int result =
+            int deviceResult =
                     tts.setLanguage(
-                            defaultLocale
+                            deviceLocale
                     );
 
-            if (result == TextToSpeech.LANG_MISSING_DATA
-                    || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+            if (deviceResult ==
+                    TextToSpeech.LANG_MISSING_DATA
+                    || deviceResult ==
+                    TextToSpeech.LANG_NOT_SUPPORTED) {
 
                 tts.setLanguage(
                         Locale.ENGLISH
@@ -635,50 +763,16 @@ public class FloatingService extends Service
         }
     }
 
-    @Override
-    public void onDestroy() {
+    public void speakText(
+            String text,
+            Locale language) {
 
-        stopScreenCapture();
+        if (tts == null
+                || text == null
+                || text.trim().isEmpty()) {
 
-        if (mediaProjection != null) {
-
-            mediaProjection.stop();
-            mediaProjection = null;
+            return;
         }
 
-        if (captureThread != null) {
-
-            captureThread.quitSafely();
-            captureThread = null;
-        }
-
-        if (tts != null) {
-
-            tts.stop();
-            tts.shutdown();
-            tts = null;
-        }
-
-        try {
-
-            if (overlayBox != null) {
-                windowManager.removeView(overlayBox);
-                overlayBox = null;
-            }
-
-            if (controlLayout != null) {
-                windowManager.removeView(controlLayout);
-                controlLayout = null;
-            }
-
-        } catch (Exception ignored) {
-        }
-
-        super.onDestroy();
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
-                    }
+        int result =
+                t
