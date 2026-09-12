@@ -2,6 +2,7 @@ package com.example.bacachat;
 
 import android.app.Service;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.media.Image;
@@ -12,6 +13,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.speech.tts.TextToSpeech;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -20,9 +22,23 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
-import java.nio.ByteBuffer;
+import com.google.mlkit.nl.languageid.LanguageIdentification;
+import com.google.mlkit.nl.languageid.LanguageIdentifier;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.text.Text;
+import com.google.mlkit.vision.text.TextRecognizer;
+import com.google.mlkit.vision.text.TextRecognition;
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
+import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions;
+import com.google.mlkit.vision.text.devanagari.DevanagariTextRecognizerOptions;
+import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions;
+import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions;
 
-public class FloatingService extends Service {
+import java.nio.ByteBuffer;
+import java.util.Locale;
+
+public class FloatingService extends Service
+        implements TextToSpeech.OnInitListener {
 
     private WindowManager windowManager;
 
@@ -34,6 +50,7 @@ public class FloatingService extends Service {
     private boolean isLocked = false;
     private boolean isHidden = false;
     private boolean isCapturing = false;
+    private boolean isOcrRunning = false;
 
     private MediaProjection mediaProjection;
     private ImageReader imageReader;
@@ -48,6 +65,18 @@ public class FloatingService extends Service {
 
     private int captureResultCode = -1;
     private Intent captureData;
+
+    private TextToSpeech tts;
+
+    private TextRecognizer latinRecognizer;
+    private TextRecognizer chineseRecognizer;
+    private TextRecognizer devanagariRecognizer;
+    private TextRecognizer japaneseRecognizer;
+    private TextRecognizer koreanRecognizer;
+
+    private LanguageIdentifier languageIdentifier;
+
+    private String lastSpokenText = "";
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -80,6 +109,49 @@ public class FloatingService extends Service {
         captureHandler =
                 new Handler(captureThread.getLooper());
 
+        tts =
+                new TextToSpeech(
+                        this,
+                        this
+                );
+
+        latinRecognizer =
+                TextRecognition.getClient(
+                        TextRecognizerOptions.DEFAULT_OPTIONS
+                );
+
+        chineseRecognizer =
+                TextRecognition.getClient(
+                        ChineseTextRecognizerOptions
+                                .Builder()
+                                .build()
+                );
+
+        devanagariRecognizer =
+                TextRecognition.getClient(
+                        DevanagariTextRecognizerOptions
+                                .Builder()
+                                .build()
+                );
+
+        japaneseRecognizer =
+                TextRecognition.getClient(
+                        JapaneseTextRecognizerOptions
+                                .Builder()
+                                .build()
+                );
+
+        koreanRecognizer =
+                TextRecognition.getClient(
+                        KoreanTextRecognizerOptions
+                                .Builder()
+                                .build()
+                );
+
+        languageIdentifier =
+                LanguageIdentification
+                        .getClient();
+
         createOverlay();
     }
 
@@ -98,7 +170,8 @@ public class FloatingService extends Service {
                             -1
                     );
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (Build.VERSION.SDK_INT >=
+                    Build.VERSION_CODES.TIRAMISU) {
 
                 captureData =
                         intent.getParcelableExtra(
@@ -128,18 +201,22 @@ public class FloatingService extends Service {
 
         int overlayType;
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.O) {
 
             overlayType =
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+                    WindowManager.LayoutParams
+                            .TYPE_APPLICATION_OVERLAY;
 
         } else {
 
             overlayType =
-                    WindowManager.LayoutParams.TYPE_PHONE;
+                    WindowManager.LayoutParams
+                            .TYPE_PHONE;
         }
 
-        overlayBox = new View(this);
+        overlayBox =
+                new View(this);
 
         overlayBox.setBackgroundColor(
                 Color.parseColor("#3300FF88")
@@ -150,13 +227,16 @@ public class FloatingService extends Service {
                         650,
                         450,
                         overlayType,
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                        WindowManager.LayoutParams
+                                .FLAG_NOT_FOCUSABLE,
                         PixelFormat.TRANSLUCENT
                 );
 
-        boxParams.gravity = Gravity.CENTER;
+        boxParams.gravity =
+                Gravity.CENTER;
 
-        controlLayout = new LinearLayout(this);
+        controlLayout =
+                new LinearLayout(this);
 
         controlLayout.setOrientation(
                 LinearLayout.HORIZONTAL
@@ -189,15 +269,19 @@ public class FloatingService extends Service {
 
         WindowManager.LayoutParams controlParams =
                 new WindowManager.LayoutParams(
-                        WindowManager.LayoutParams.WRAP_CONTENT,
-                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        WindowManager.LayoutParams
+                                .WRAP_CONTENT,
+                        WindowManager.LayoutParams
+                                .WRAP_CONTENT,
                         overlayType,
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                        WindowManager.LayoutParams
+                                .FLAG_NOT_FOCUSABLE,
                         PixelFormat.TRANSLUCENT
                 );
 
         controlParams.gravity =
-                Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+                Gravity.TOP |
+                        Gravity.CENTER_HORIZONTAL;
 
         controlParams.y = 80;
 
@@ -232,7 +316,8 @@ public class FloatingService extends Service {
                     @Override
                     public void onClick(View v) {
 
-                        isLocked = !isLocked;
+                        isLocked =
+                                !isLocked;
 
                         if (isLocked) {
 
@@ -268,7 +353,8 @@ public class FloatingService extends Service {
                     @Override
                     public void onClick(View v) {
 
-                        isHidden = !isHidden;
+                        isHidden =
+                                !isHidden;
 
                         if (isHidden) {
 
@@ -311,6 +397,11 @@ public class FloatingService extends Service {
                             return;
                         }
 
+                        if (isOcrRunning) {
+
+                            return;
+                        }
+
                         captureCurrentFrame();
                     }
                 }
@@ -321,6 +412,7 @@ public class FloatingService extends Service {
 
                     @Override
                     public void onClick(View v) {
+
                         stopSelf();
                     }
                 }
@@ -348,7 +440,9 @@ public class FloatingService extends Service {
                             return false;
                         }
 
-                        switch (event.getAction()) {
+                        switch (
+                                event.getAction()
+                        ) {
 
                             case MotionEvent.ACTION_DOWN:
 
@@ -480,13 +574,17 @@ public class FloatingService extends Service {
                             try {
 
                                 image =
-                                        reader.acquireLatestImage();
+                                        reader
+                                                .acquireLatestImage();
 
                                 if (image == null) {
                                     return;
                                 }
 
-                                processFrame(image);
+                                processFrame(
+                                        image,
+                                        false
+                                );
 
                             } catch (Exception ignored) {
 
@@ -500,16 +598,17 @@ public class FloatingService extends Service {
             );
 
             virtualDisplay =
-                    mediaProjection.createVirtualDisplay(
-                            "BacaLivechat",
-                            screenWidth,
-                            screenHeight,
-                            screenDensity,
-                            0,
-                            imageReader.getSurface(),
-                            null,
-                            captureHandler
-                    );
+                    mediaProjection
+                            .createVirtualDisplay(
+                                    "BacaLivechat",
+                                    screenWidth,
+                                    screenHeight,
+                                    screenDensity,
+                                    0,
+                                    imageReader.getSurface(),
+                                    null,
+                                    captureHandler
+                            );
 
             isCapturing = true;
 
@@ -531,9 +630,61 @@ public class FloatingService extends Service {
         }
     }
 
-    private void processFrame(Image image) {
+    private void captureCurrentFrame() {
+
+        if (imageReader == null) {
+            return;
+        }
+
+        Image image = null;
 
         try {
+
+            image =
+                    imageReader
+                            .acquireLatestImage();
+
+            if (image == null) {
+
+                Toast.makeText(
+                        this,
+                        "Belum ada frame layar",
+                        Toast.LENGTH_SHORT
+                ).show();
+
+                return;
+            }
+
+            processFrame(
+                    image,
+                    true
+            );
+
+        } catch (Exception e) {
+
+            if (image != null) {
+                image.close();
+            }
+        }
+    }
+
+    private void processFrame(
+            Image image,
+            boolean runOcr
+    ) {
+
+        Bitmap fullBitmap = null;
+        Bitmap croppedBitmap = null;
+
+        try {
+
+            if (!runOcr) {
+                return;
+            }
+
+            if (isOcrRunning) {
+                return;
+            }
 
             Image.Plane[] planes =
                     image.getPlanes();
@@ -549,135 +700,26 @@ public class FloatingService extends Service {
             ByteBuffer buffer =
                     plane.getBuffer();
 
-            /*
-             * Frame hanya diproses di RAM.
-             *
-             * Tidak ada screenshot yang disimpan
-             * ke penyimpanan perangkat.
-             *
-             * OCR akan ditambahkan setelah
-             * screen capture berhasil dikompilasi.
-             */
+            int pixelStride =
+                    plane.getPixelStride();
 
-            if (buffer != null) {
-                buffer.rewind();
-            }
+            int rowStride =
+                    plane.getRowStride();
 
-        } finally {
+            int rowPadding =
+                    rowStride -
+                            pixelStride *
+                                    screenWidth;
 
-            image.close();
-        }
-    }
+            int bitmapWidth =
+                    screenWidth +
+                            rowPadding /
+                                    pixelStride;
 
-    private void captureCurrentFrame() {
+            buffer.rewind();
 
-        if (imageReader == null) {
-            return;
-        }
-
-        Image image = null;
-
-        try {
-
-            image =
-                    imageReader.acquireLatestImage();
-
-            if (image == null) {
-
-                Toast.makeText(
-                        this,
-                        "Belum ada frame layar",
-                        Toast.LENGTH_SHORT
-                ).show();
-
-                return;
-            }
-
-            processFrame(image);
-
-        } catch (Exception e) {
-
-            if (image != null) {
-                image.close();
-            }
-        }
-    }
-
-    private void stopScreenCapture() {
-
-        isCapturing = false;
-
-        if (virtualDisplay != null) {
-
-            try {
-                virtualDisplay.release();
-            } catch (Exception ignored) {
-            }
-
-            virtualDisplay = null;
-        }
-
-        if (imageReader != null) {
-
-            try {
-                imageReader.close();
-            } catch (Exception ignored) {
-            }
-
-            imageReader = null;
-        }
-
-        if (mediaProjection != null) {
-
-            try {
-                mediaProjection.stop();
-            } catch (Exception ignored) {
-            }
-
-            mediaProjection = null;
-        }
-    }
-
-    @Override
-    public void onDestroy() {
-
-        stopScreenCapture();
-
-        if (captureThread != null) {
-
-            try {
-                captureThread.quitSafely();
-            } catch (Exception ignored) {
-            }
-
-            captureThread = null;
-            captureHandler = null;
-        }
-
-        try {
-
-            if (overlayBox != null &&
-                    overlayBox.getWindowToken() != null) {
-
-                windowManager.removeView(
-                        overlayBox
-                );
-            }
-
-            if (controlLayout != null &&
-                    controlLayout.getWindowToken() != null) {
-
-                windowManager.removeView(
-                        controlLayout
-                );
-            }
-
-        } catch (Exception ignored) {
-        }
-
-        overlayBox = null;
-        controlLayout = null;
-
-        super.onDestroy();
-    }
-            }
+            fullBitmap =
+                    Bitmap.createBitmap(
+                            bitmapWidth,
+                            screenHeight,
+                            Bitmap.Config.A
